@@ -16,8 +16,12 @@ public sealed class AdminController(AppDbContext db, UserManager<AppUser> users)
         Require(page is > 0 and <= 10000 && (search?.Length ?? 0) <= 100, "Невірні параметри пошуку.");
         var query = db.Users.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(u => u.FullName.ToLower().Contains(search.ToLower()) || u.Email!.ToLower().Contains(search.ToLower()));
-        return new { total = await query.CountAsync(), items = await query.OrderBy(u => u.FullName).Skip((page - 1) * 50).Take(50)
-            .Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.IsDisabled }).ToListAsync() };
+        return new
+        {
+            total = await query.CountAsync(),
+            items = await query.OrderBy(u => u.FullName).Skip((page - 1) * 50).Take(50)
+            .Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.IsDisabled }).ToListAsync()
+        };
     }
 
     [HttpPut("users/{id}")]

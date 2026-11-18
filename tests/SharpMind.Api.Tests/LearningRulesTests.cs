@@ -7,7 +7,10 @@ public sealed class LearningRulesTests
     private static Question[] Questions => Enumerable.Range(1, 10).Select(i => new Question($"q{i}", $"Question {i}", ["A", "B", "C", "D"], i % 4, "Explanation")).ToArray();
 
     [Theory]
-    [InlineData(0, 0)] [InlineData(7, 70)] [InlineData(8, 80)] [InlineData(10, 100)]
+    [InlineData(0, 0)]
+    [InlineData(7, 70)]
+    [InlineData(8, 80)]
+    [InlineData(10, 100)]
     public void ScoreReflectsCorrectAnswers(int correct, int expected)
     {
         var questions = Questions;

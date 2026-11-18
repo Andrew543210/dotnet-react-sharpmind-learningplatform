@@ -25,9 +25,17 @@ public sealed class LearningController(AppDbContext db, LearningService learning
     {
         var (e, content) = await Access(courseId);
         var m = content.Modules.SingleOrDefault(m => m.Key == key) ?? throw Missing();
-        return new { m.Key, m.Title, m.Minutes, m.Lesson, m.Practice, status = await learning.Status(e, content),
+        return new
+        {
+            m.Key,
+            m.Title,
+            m.Minutes,
+            m.Lesson,
+            m.Practice,
+            status = await learning.Status(e, content),
             media = await db.CourseMedia.Where(x => x.CourseId == courseId && x.ModuleKey == key).OrderBy(x => x.CreatedAt)
-                .Select(x => new { x.Id, x.Title, x.ContentType, x.Transcript, x.Length }).ToListAsync() };
+                .Select(x => new { x.Id, x.Title, x.ContentType, x.Transcript, x.Length }).ToListAsync()
+        };
     }
 
     [HttpPost("modules/{key}/complete")]
@@ -50,9 +58,13 @@ public sealed class LearningController(AppDbContext db, LearningService learning
         var status = await learning.Status(e, content);
         var questions = Questions(content, key);
         Require(key != "final" || status.FinalUnlocked, "Спочатку завершіть усі модулі.", 409);
-        return new { key, passScore = key == "final" ? LearningRules.FinalPass : LearningRules.ModulePass,
+        return new
+        {
+            key,
+            passScore = key == "final" ? LearningRules.FinalPass : LearningRules.ModulePass,
             questions = questions.Select(q => new { q.Id, q.Text, options = q.Options.Select((text, index) => new { value = index, text }).OrderBy(_ => RandomNumberGenerator.GetInt32(int.MaxValue)) }),
-            attempts = status.Attempts.Where(a => a.AssessmentKey == key) };
+            attempts = status.Attempts.Where(a => a.AssessmentKey == key)
+        };
     }
 
     [HttpPost("quizzes/{key}")]
@@ -118,8 +130,14 @@ public sealed class LearningController(AppDbContext db, LearningService learning
         Require(status.CanCertify, "Вимоги для сертифіката ще не виконано.", 409);
         await db.Entry(e).Reference(x => x.Student).LoadAsync();
         await db.Entry(e.Course).Reference(x => x.Mentor).LoadAsync();
-        var certificate = new Certificate { EnrollmentId = e.Id, FullName = e.Student.FullName,
-            CourseTitle = e.Course.Title, MentorName = e.Course.Mentor.FullName, FinalScore = status.FinalScore };
+        var certificate = new Certificate
+        {
+            EnrollmentId = e.Id,
+            FullName = e.Student.FullName,
+            CourseTitle = e.Course.Title,
+            MentorName = e.Course.Mentor.FullName,
+            FinalScore = status.FinalScore
+        };
         db.Certificates.Add(certificate);
         await db.SaveChangesAsync();
         await tx.CommitAsync();
@@ -130,6 +148,7 @@ public sealed class LearningController(AppDbContext db, LearningService learning
         : content.Modules.SingleOrDefault(m => m.Key == key)?.Questions ?? throw Missing();
     private static object Result(Question[] questions, Dictionary<string, int> answers, int score) => new
     {
-        score, feedback = questions.Select(q => new { q.Id, q.Text, selected = answers[q.Id], correct = q.Correct, q.Options, q.Explanation })
+        score,
+        feedback = questions.Select(q => new { q.Id, q.Text, selected = answers[q.Id], correct = q.Correct, q.Options, q.Explanation })
     };
 }

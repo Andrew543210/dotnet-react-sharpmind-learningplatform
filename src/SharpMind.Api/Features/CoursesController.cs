@@ -36,7 +36,9 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
         var content = Curriculum.FromJson(course.CurriculumJson);
         return new
         {
-            course = Card(course), content.Outcomes, content.Prerequisites,
+            course = Card(course),
+            content.Outcomes,
+            content.Prerequisites,
             modules = content.Modules.Select(m => new { m.Key, m.Title, m.Minutes }),
             enrollment = enrollment is null ? null : new { enrollment.Id, enrollment.Status, enrollment.DecisionReason },
             status = enrollment?.Status == "Approved" ? await learning.Status(enrollment, content) : null,
@@ -94,7 +96,20 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
     internal static object Card(Course c)
     {
         var content = Curriculum.FromJson(c.CurriculumJson);
-        return new { c.Id, c.Slug, c.Title, c.Description, c.Topic, c.Level, mentorName = c.Mentor.FullName,
-            moduleCount = content.Modules.Length, minutes = content.Modules.Sum(m => m.Minutes), c.IsPublished, c.IsArchived, c.Version };
+        return new
+        {
+            c.Id,
+            c.Slug,
+            c.Title,
+            c.Description,
+            c.Topic,
+            c.Level,
+            mentorName = c.Mentor.FullName,
+            moduleCount = content.Modules.Length,
+            minutes = content.Modules.Sum(m => m.Minutes),
+            c.IsPublished,
+            c.IsArchived,
+            c.Version
+        };
     }
 }
