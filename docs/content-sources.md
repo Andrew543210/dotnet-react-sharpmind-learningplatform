@@ -1,0 +1,20 @@
+# Curriculum and external references
+
+The ten focused courses contain original Ukrainian teaching text, worked examples, practical briefs, rubrics and assessment explanations. Each course has two substantial modules, two ten-question quizzes and one ten-question final examination: 20 modules, 20 practical assignments and 300 questions in total. The estimated 6–8 hours per course includes independent practice; it is not a promise of professional mastery.
+
+External reading links use English-language documentation from the maintainers or authoritative primary references. Video links open the original English-language publication. Videos are optional supplements and are not downloaded, copied, bundled or represented as SharpMind-owned recordings. Older videos are marked with version caveats; the current official documentation and lesson setup take priority. Availability may change. The automated content check verifies structure and minimum teaching volume; source and video availability were checked separately during release preparation.
+
+| Course | Documentation | Video publisher / instructor |
+| --- | --- | --- |
+| C# collections and async | [Microsoft C#](https://learn.microsoft.com/en-us/dotnet/csharp/), [LINQ](https://learn.microsoft.com/en-us/dotnet/csharp/linq/) | [freeCodeCamp / Mike Dane](https://www.youtube.com/watch?v=GhQdlIFylQ8), [Microsoft / Stephen Toub](https://learn.microsoft.com/en-us/shows/on-dotnet/writing-async-await-from-scratch-in-csharp-with-stephen-toub) |
+| React state and forms | [React](https://react.dev/learn) | [freeCodeCamp / Bob Ziroll](https://www.youtube.com/watch?v=bMknfKXIFA8) |
+| Frontend foundations | [MDN](https://developer.mozilla.org/en-US/docs/Learn_web_development) | [HTML / Mike Dane](https://www.youtube.com/watch?v=pQN-pnXPaVg), [CSS / Dave Gray](https://www.youtube.com/watch?v=OXGznpKZ_sA) |
+| DevOps delivery | [Docker](https://docs.docker.com/get-started/), [GitHub Actions](https://docs.github.com/en/actions), [PostgreSQL](https://www.postgresql.org/docs/current/backup.html) | [freeCodeCamp / KodeKloud](https://www.youtube.com/watch?v=fqMOX6JJhGo) |
+| JavaScript HTTP | [MDN JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript), [Node HTTP](https://nodejs.org/api/http.html) | [JavaScript / Per Harald Borgen](https://www.youtube.com/watch?v=jS4aFq5-91M), [Node / John Smilga](https://www.youtube.com/watch?v=Oe421EPjeBE) |
+| Python data | [pandas](https://pandas.pydata.org/docs/), [Matplotlib](https://matplotlib.org/stable/), [scikit-learn](https://scikit-learn.org/stable/common_pitfalls.html) | [Data analysis / freeCodeCamp](https://www.youtube.com/watch?v=r-uOLxNrNk8), [scikit-learn / Vincent D. Warmerdam](https://www.freecodecamp.org/news/learn-scikit-learn/) |
+| Java foundations | [Dev.java](https://dev.java/learn/) | [freeCodeCamp / Farhan Hasin Chowdhury](https://www.youtube.com/watch?v=A74TOX803D0) |
+| Go services | [Go](https://go.dev/tour/), [context](https://pkg.go.dev/context) | [freeCodeCamp / Lane Wagner and Allan Lires](https://www.youtube.com/watch?v=un6ZyFkqFKo) |
+| C++ ownership | [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines) | [freeCodeCamp / Daniel Gakwaya](https://www.youtube.com/watch?v=8jLOx1hD3_o) |
+| Angular apps | [Angular](https://angular.dev/guide/components), [signals](https://angular.dev/guide/signals), [forms](https://angular.dev/guide/forms/reactive-forms) | [Deborah Kurata / freeCodeCamp](https://www.freecodecamp.org/news/angular-signals/), [Santosh Yadav / freeCodeCamp](https://www.youtube.com/watch?v=3qBXWUpoPHo) |
+
+The sample datasets are synthetic except the optional iris dataset loaded through scikit-learn's documented dataset API. Its provenance remains in the library documentation. No external article text or third-party video file is redistributed in the course JSON. Uploaded media must be owned by the uploader or used under appropriate permission; course authors are asked to preserve attribution in captions.
