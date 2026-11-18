@@ -91,5 +91,25 @@ public sealed class ApiTests : IClassFixture<ApiFixture>
         var own = await first.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Single(own.GetProperty("items").EnumerateArray());
         var others = await second.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Empty(others.GetProperty("items").EnumerateArray());
         Assert.Equal(HttpStatusCode.Conflict, (await f.Send(second, "/api/support", body)).StatusCode);
+        using var scope = f.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.SupportTickets.AddRange(Enumerable.Range(1, 51).Select(i => new SupportTicket
+        {
+            Id = Guid.NewGuid(),
+            UserId = f.StudentId,
+            Subject = $"Pagination question {i}",
+            Message = "A separate support message for pagination verification."
+        }));
+        await db.SaveChangesAsync();
+        var pageOne = await first.GetFromJsonAsync<JsonElement>("/api/support?page=1");
+        var pageTwo = await first.GetFromJsonAsync<JsonElement>("/api/support?page=2");
+        Assert.Equal(52, pageOne.GetProperty("total").GetInt32());
+        Assert.Equal(50, pageOne.GetProperty("items").GetArrayLength());
+        Assert.Equal(2, pageTwo.GetProperty("items").GetArrayLength());
+        var ids = pageOne.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToHashSet();
+        Assert.All(pageTwo.GetProperty("items").EnumerateArray(), x => Assert.DoesNotContain(x.GetProperty("id").GetGuid(), ids));
+        Assert.Equal(HttpStatusCode.BadRequest, (await first.GetAsync("/api/support?page=0")).StatusCode);
+        var privatePage = await second.GetFromJsonAsync<JsonElement>("/api/support?page=2");
+        Assert.Equal(0, privatePage.GetProperty("total").GetInt32());
     }
 }
