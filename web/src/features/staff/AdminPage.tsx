@@ -1,0 +1,115 @@
+import { useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { api } from '../../shared/api'
+import { useAction, useApi } from '../../shared/hooks'
+import type { Role, User } from '../../shared/types'
+import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
+
+type Account = User & { isDisabled: boolean }
+export function AdminPage() {
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const query = useApi<{ total: number; items: Account[] }>(
+    `/admin/users?search=${encodeURIComponent(search)}&page=${page}`,
+  )
+  return (
+    <div className="page">
+      <p className="eyebrow">АДМІНІСТРУВАННЯ</p>
+      <h1>Користувачі та доступи</h1>
+      <p className="lead">
+        Нові користувачі реєструються студентами. Призначайте менторів із зареєстрованих облікових
+        записів.
+      </p>
+      <form
+        className="search"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setSearch(String(new FormData(e.currentTarget).get('search') ?? ''))
+          setPage(1)
+        }}
+      >
+        <input
+          name="search"
+          aria-label="Знайти користувача"
+          maxLength={100}
+          placeholder="Ім’я або пошта"
+        />
+        <button>Знайти</button>
+      </form>
+      {query.loading ? (
+        <Loading />
+      ) : query.error ? (
+        <ErrorState error={query.error} retry={query.refresh} />
+      ) : !query.data?.items.length ? (
+        <Empty title="Користувачів не знайдено" />
+      ) : (
+        <>
+          <div className="admin-users">
+            {query.data.items.map((u) => (
+              <UserForm key={u.id} user={u} refresh={query.refresh} />
+            ))}
+          </div>
+          <div className="pagination">
+            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              Попередня
+            </button>
+            <span>
+              {page} · Усього {query.data.total}
+            </span>
+            <button disabled={page * 50 >= query.data.total} onClick={() => setPage((p) => p + 1)}>
+              Наступна
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+function UserForm({ user, refresh }: { user: Account; refresh: () => void }) {
+  const auth = useAuth()
+  const [role, setRole] = useState<Role>(user.role)
+  const [disabled, setDisabled] = useState(user.isDisabled)
+  const action = useAction()
+  return (
+    <form
+      className="panel user-row"
+      onSubmit={(e) => {
+        e.preventDefault()
+        action.run(async () => {
+          await api.send(`/admin/users/${user.id}`, { role, isDisabled: disabled }, 'PUT')
+          refresh()
+        }, 'Права збережено.')
+      }}
+    >
+      <div>
+        <h3>{user.fullName}</h3>
+        <p>{user.email}</p>
+      </div>
+      <fieldset disabled={user.id === auth.user?.id || action.pending}>
+        <label>
+          Роль
+          <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+            <option value="Student">Студент</option>
+            <option value="Mentor">Ментор</option>
+            <option value="Admin">Адміністратор</option>
+          </select>
+        </label>
+        <label className="check-label">
+          <input
+            type="checkbox"
+            checked={disabled}
+            onChange={(e) => setDisabled(e.target.checked)}
+          />
+          Обліковий запис заблоковано
+        </label>
+        <button
+          className="button secondary small"
+          disabled={role === user.role && disabled === user.isDisabled}
+        >
+          Зберегти
+        </button>
+      </fieldset>
+      <Notice error={action.error} success={action.success} />
+    </form>
+  )
+}
