@@ -12,6 +12,6 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Content/**/*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="Content/**/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

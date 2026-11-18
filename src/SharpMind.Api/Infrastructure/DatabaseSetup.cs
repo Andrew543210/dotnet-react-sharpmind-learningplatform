@@ -1,0 +1,60 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using SharpMind.Api.Domain;
+
+namespace SharpMind.Api.Infrastructure;
+
+public static class DatabaseSetup
+{
+    public static async Task Run(IServiceProvider services, IConfiguration config, IHostEnvironment environment, string[] args)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        if (args.Contains("--migrate")) await db.Database.MigrateAsync();
+        if (args.Contains("--bootstrap-admin"))
+        {
+            var email = config["Bootstrap:Email"] ?? throw new InvalidOperationException("Set Bootstrap__Email.");
+            var password = config["Bootstrap:Password"] ?? throw new InvalidOperationException("Set Bootstrap__Password.");
+            var name = config["Bootstrap:FullName"] ?? "Адміністратор";
+            if (await db.Users.AnyAsync(u => u.Role == "Admin")) throw new InvalidOperationException("An administrator already exists. Bootstrap does not modify existing users.");
+            await CreateUser(users, email, name, "Admin", password);
+        }
+        if (args.Contains("--seed-demo"))
+        {
+            if (environment.IsProduction()) throw new InvalidOperationException("Demo data is forbidden in Production.");
+            var password = config["Demo:Password"] ?? throw new InvalidOperationException("Set Demo__Password (15–128 characters).");
+            await CreateUser(users, "admin@demo.sharpmind.test", "Адміністратор демо", "Admin", password);
+            await CreateUser(users, "mentor@demo.sharpmind.test", "Олександр Коваль", "Mentor", password);
+            await CreateUser(users, "student@demo.sharpmind.test", "Марія Шевченко", "Student", password);
+        }
+        if (args.Contains("--seed-content"))
+        {
+            var mentorEmail = config["Content:MentorEmail"] ?? "mentor@demo.sharpmind.test";
+            var mentor = await users.FindByEmailAsync(mentorEmail) ?? throw new InvalidOperationException("Create a mentor and set Content__MentorEmail before importing content.");
+            if (mentor.Role is not ("Mentor" or "Admin") || mentor.IsDisabled) throw new InvalidOperationException("Content mentor must be active staff.");
+            var directory = Path.Combine(environment.ContentRootPath, "Content");
+            foreach (var file in Directory.GetFiles(directory, "*.json").Order())
+            {
+                var seed = JsonSerializer.Deserialize<CourseSeed>(await File.ReadAllTextAsync(file), Curriculum.JsonOptions) ?? throw new InvalidOperationException("Invalid course file.");
+                var error = seed.Content.Validate();
+                if (error is not null) throw new InvalidOperationException($"{Path.GetFileName(file)}: {error}");
+                if (await db.Courses.AnyAsync(c => c.Slug == seed.Slug)) continue;
+                db.Courses.Add(new Course { Slug = seed.Slug, Title = seed.Title, Description = seed.Description,
+                    Topic = seed.Topic, Level = seed.Level, MentorId = mentor.Id, CurriculumJson = seed.Content.ToJson(), IsPublished = true });
+            }
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task CreateUser(UserManager<AppUser> users, string email, string name, string role, string password)
+    {
+        if (await users.FindByEmailAsync(email) is not null) return;
+        if (password.Length is < 15 or > 128) throw new InvalidOperationException("Password must contain 15–128 characters.");
+        var result = await users.CreateAsync(new AppUser { UserName = email, Email = email, FullName = name, Role = role }, password);
+        if (!result.Succeeded) throw new InvalidOperationException("Unable to create account. Check the configured credentials.");
+    }
+}
+
+public sealed record CourseSeed(string Slug, string Title, string Description, string Topic, string Level, Curriculum Content);

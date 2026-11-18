@@ -1,0 +1,13 @@
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+process.chdir(fileURLToPath(new URL('..', import.meta.url)));
+process.loadEnvFile('.env');
+const mode = process.argv[2];
+const args = process.argv.slice(3);
+let child;
+if (mode === 'api') child = spawn('dotnet', ['run', '--project', 'src/SharpMind.Api', '--no-launch-profile', ...args], { stdio: 'inherit' });
+else if (mode === 'web') child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev', '--prefix', 'web', '--', '--host', '127.0.0.1'], { stdio: 'inherit', shell: process.platform === 'win32' });
+else if (mode === 'db-task') child = spawn('dotnet', ['run', '--project', 'src/SharpMind.Api', '--no-launch-profile', '--', ...args], { stdio: 'inherit' });
+else throw new Error('Usage: node scripts/run.mjs api|web|db-task [arguments]');
+child.on('error', error => { console.error(error.message); process.exitCode = 1; });
+child.on('exit', code => { process.exitCode = code ?? 1; });
