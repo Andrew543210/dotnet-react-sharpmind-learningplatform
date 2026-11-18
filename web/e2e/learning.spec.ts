@@ -156,6 +156,11 @@ test('mentor can add photo and video materials; student cannot use studio', asyn
   await page
     .getByLabel('Підпис / опис зображення')
     .fill('Навчальне зображення для перевірки завантаження')
+  page.once('dialog', (dialog) => dialog.dismiss())
+  await page.getByRole('link', { name: '← До майстерні', exact: true }).click()
+  await expect(page.getByLabel('Підпис / опис зображення')).toHaveValue(
+    'Навчальне зображення для перевірки завантаження',
+  )
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jO0YAAAAASUVORK5CYII=',
     'base64',

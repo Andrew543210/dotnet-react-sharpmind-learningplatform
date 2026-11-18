@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, it, expect, vi } from 'vitest'
@@ -31,10 +31,14 @@ describe('Quiz workflow', () => {
     render(<RouterProvider router={router} />)
     const submit = await screen.findByRole('button', { name: 'Завершити тест' })
     expect(submit).toBeDisabled()
-    for (let i = 0; i < 10; i++) await user.click(screen.getByLabelText(`Answer ${i + 1}-0`))
+    for (const choice of screen.getAllByLabelText(/^Answer \d+-0$/)) fireEvent.click(choice)
     expect(submit).toBeEnabled()
     await user.dblClick(submit)
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send).toHaveBeenCalledWith('/learning/1/quizzes/state', {
+      requestId: expect.any(String),
+      answers: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`q${i}`, 0])),
+    })
     expect(screen.getByRole('button', { name: 'Перевіряємо…' })).toBeDisabled()
     resolve({ score: 80, feedback: [] })
     expect(await screen.findByRole('heading', { name: 'Знання підтверджено' })).toBeInTheDocument()
@@ -61,8 +65,7 @@ describe('Quiz workflow', () => {
         })}
       />,
     )
-    for (let i = 0; i < 10; i++)
-      await user.click(await screen.findByRole('radio', { name: `Choice ${i}` }))
+    for (const choice of await screen.findAllByLabelText(/^Choice \d+$/)) fireEvent.click(choice)
     await user.click(screen.getByRole('button', { name: 'Завершити тест' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('60 секунд')
     expect(screen.getAllByRole('radio').every((r) => (r as HTMLInputElement).checked)).toBe(true)
