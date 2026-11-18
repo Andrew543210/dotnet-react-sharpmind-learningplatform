@@ -24,11 +24,13 @@ export function useApi<T>(path: string) {
       })
     return () => controller.abort()
   }, [path, revision])
-  const current = result?.path === path && result.revision === revision
+  const samePath = result?.path === path
+  const current = samePath && result.revision === revision
   return {
-    data: current ? result.data : null,
+    data: samePath ? result.data : null,
     error: current ? result.error : '',
-    loading: !current,
+    loading: !samePath || (!current && result.data === null),
+    refreshing: samePath && !current,
     refresh,
   }
 }

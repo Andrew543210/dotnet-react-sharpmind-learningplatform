@@ -88,8 +88,8 @@ public sealed class ApiTests : IClassFixture<ApiFixture>
         var body = new { requestId = Guid.NewGuid(), subject = "Course access question", message = "Please help with access to my new course materials." };
         (await f.Send(first, "/api/support", body)).EnsureSuccessStatusCode();
         (await f.Send(first, "/api/support", body)).EnsureSuccessStatusCode();
-        var own = await first.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Single(own.EnumerateArray());
-        var others = await second.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Empty(others.EnumerateArray());
+        var own = await first.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Single(own.GetProperty("items").EnumerateArray());
+        var others = await second.GetFromJsonAsync<JsonElement>("/api/support"); Assert.Empty(others.GetProperty("items").EnumerateArray());
         Assert.Equal(HttpStatusCode.Conflict, (await f.Send(second, "/api/support", body)).StatusCode);
     }
 }

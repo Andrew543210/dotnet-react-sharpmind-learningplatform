@@ -6,6 +6,7 @@ import { useAction, useApi } from '../../shared/hooks'
 import type { Submission } from '../../shared/types'
 import { date, statuses } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
+import { Pagination } from '../../shared/Pagination'
 
 type StaffCourse = {
   id: number
@@ -115,15 +116,25 @@ function StaffCourses() {
   )
 }
 function EnrollmentList() {
-  const query = useApi<Enrollment[]>('/staff/enrollments')
   const [all, setAll] = useState(false)
+  const [page, setPage] = useState(1)
+  const query = useApi<{ items: Enrollment[]; total: number }>(
+    `/staff/enrollments?page=${page}&all=${all}`,
+  )
   if (query.loading) return <Loading />
   if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
-  const rows = query.data?.filter((x) => all || x.status === 'Pending') ?? []
+  const rows = query.data?.items ?? []
   return (
     <>
       <label className="check-label">
-        <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={all}
+          onChange={(e) => {
+            setAll(e.target.checked)
+            setPage(1)
+          }}
+        />
         Показати також розглянуті заявки
       </label>
       {!rows.length ? (
@@ -131,6 +142,7 @@ function EnrollmentList() {
       ) : (
         rows.map((e) => <DecisionForm key={e.id} enrollment={e} refresh={query.refresh} />)
       )}
+      <Pagination page={page} total={query.data?.total ?? 0} onChange={setPage} />
     </>
   )
 }
@@ -199,15 +211,25 @@ function DecisionForm({ enrollment: e, refresh }: { enrollment: Enrollment; refr
   )
 }
 function ReviewList() {
-  const query = useApi<Review[]>('/staff/submissions')
   const [all, setAll] = useState(false)
+  const [page, setPage] = useState(1)
+  const query = useApi<{ items: Review[]; total: number }>(
+    `/staff/submissions?page=${page}&all=${all}`,
+  )
   if (query.loading) return <Loading />
   if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
-  const rows = query.data?.filter((x) => all || x.grade === null) ?? []
+  const rows = query.data?.items ?? []
   return (
     <>
       <label className="check-label">
-        <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={all}
+          onChange={(e) => {
+            setAll(e.target.checked)
+            setPage(1)
+          }}
+        />
         Показати також перевірені роботи
       </label>
       {!rows.length ? (
@@ -217,6 +239,7 @@ function ReviewList() {
       ) : (
         rows.map((s) => <GradeForm key={s.id} submission={s} refresh={query.refresh} />)
       )}
+      <Pagination page={page} total={query.data?.total ?? 0} onChange={setPage} />
     </>
   )
 }

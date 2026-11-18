@@ -10,9 +10,26 @@ namespace SharpMind.Api.Features;
 public sealed class SupportController(AppDbContext db) : ApiController
 {
     [HttpGet]
-    public async Task<object> List() => await db.SupportTickets.Where(t => IsAdmin || t.UserId == UserId)
-        .OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new { t.Id, t.Subject, t.Message, t.Reply, t.CreatedAt, t.ResolvedAt,
-            userName = t.User.FullName }).ToListAsync();
+    public async Task<object> List([FromQuery] int page = 1)
+    {
+        Require(page is >= 1 and <= 10000, "Невірна сторінка.");
+        var query = db.SupportTickets.Where(t => IsAdmin || t.UserId == UserId);
+        return new
+        {
+            total = await query.CountAsync(),
+            items = await query.OrderByDescending(t => t.CreatedAt).ThenBy(t => t.Id)
+            .Skip((page - 1) * 50).Take(50).Select(t => new
+            {
+                t.Id,
+                t.Subject,
+                t.Message,
+                t.Reply,
+                t.CreatedAt,
+                t.ResolvedAt,
+                userName = t.User.FullName
+            }).ToListAsync()
+        };
+    }
 
     [HttpPost]
     public async Task<object> Create(TicketRequest request)

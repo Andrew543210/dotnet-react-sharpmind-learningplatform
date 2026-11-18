@@ -4,6 +4,7 @@ import { api } from '../../shared/api'
 import { useAction, useApi, useDraft } from '../../shared/hooks'
 import { date } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
+import { Pagination } from '../../shared/Pagination'
 
 type Ticket = {
   id: string
@@ -16,7 +17,8 @@ type Ticket = {
 }
 export function SupportPage() {
   const { user } = useAuth()
-  const query = useApi<Ticket[]>('/support')
+  const [page, setPage] = useState(1)
+  const query = useApi<{ items: Ticket[]; total: number }>(`/support?page=${page}`)
   const [body, setBody] = useDraft(`support:${user!.id}`)
   const [subject, setSubject] = useState('')
   const [requestId, setRequestId] = useState(crypto.randomUUID())
@@ -37,12 +39,12 @@ export function SupportPage() {
             <Loading />
           ) : query.error ? (
             <ErrorState error={query.error} retry={query.refresh} />
-          ) : !query.data?.length ? (
+          ) : !query.data?.items.length ? (
             <Empty title="Поки що без звернень">
               <p>Якщо потрібна допомога, напишіть нам.</p>
             </Empty>
           ) : (
-            query.data.map((t) => (
+            query.data.items.map((t) => (
               <article className="panel ticket" key={t.id}>
                 <span className={`badge ${t.resolvedAt ? 'green' : ''}`}>
                   {t.resolvedAt ? 'Вирішено' : 'Очікує відповіді'}
@@ -64,6 +66,7 @@ export function SupportPage() {
               </article>
             ))
           )}
+          <Pagination page={page} total={query.data?.total ?? 0} onChange={setPage} />
         </section>
         <form
           className="panel support-form"
@@ -74,6 +77,7 @@ export function SupportPage() {
               setSubject('')
               setBody('')
               setRequestId(crypto.randomUUID())
+              setPage(1)
               query.refresh()
             }, 'Звернення надіслано. Відповідь з’явиться в цьому розділі.')
           }}

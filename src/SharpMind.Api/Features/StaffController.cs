@@ -121,17 +121,26 @@ public sealed class StaffController(AppDbContext db) : ApiController
     }
 
     [HttpGet("enrollments")]
-    public async Task<object> Enrollments() => await db.Enrollments.Where(e => e.Course.MentorId == UserId || IsAdmin)
-        .OrderByDescending(e => e.RequestedAt).Take(200).Select(e => new
+    public async Task<object> Enrollments([FromQuery] int page = 1, [FromQuery] bool all = false)
+    {
+        Require(page is >= 1 and <= 10000, "Невірна сторінка.");
+        var query = db.Enrollments.Where(e => (e.Course.MentorId == UserId || IsAdmin) && (all || e.Status == "Pending"));
+        return new
         {
-            e.Id,
-            e.CourseId,
-            courseTitle = e.Course.Title,
-            studentName = e.Student.FullName,
-            e.Status,
-            e.DecisionReason,
-            e.RequestedAt
-        }).ToListAsync();
+            total = await query.CountAsync(),
+            items = await query.OrderBy(e => e.RequestedAt).ThenBy(e => e.Id)
+            .Skip((page - 1) * 50).Take(50).Select(e => new
+            {
+                e.Id,
+                e.CourseId,
+                courseTitle = e.Course.Title,
+                studentName = e.Student.FullName,
+                e.Status,
+                e.DecisionReason,
+                e.RequestedAt
+            }).ToListAsync()
+        };
+    }
 
     [HttpPost("enrollments/{id:int}/decision")]
     public async Task<IActionResult> Decide(int id, EnrollmentDecision request)
@@ -153,20 +162,29 @@ public sealed class StaffController(AppDbContext db) : ApiController
     }
 
     [HttpGet("submissions")]
-    public async Task<object> Submissions() => await db.Submissions.Where(s => s.Enrollment.Course.MentorId == UserId || IsAdmin)
-        .OrderBy(s => s.Grade != null).ThenBy(s => s.SubmittedAt).Take(200).Select(s => new
+    public async Task<object> Submissions([FromQuery] int page = 1, [FromQuery] bool all = false)
+    {
+        Require(page is >= 1 and <= 10000, "Невірна сторінка.");
+        var query = db.Submissions.Where(s => (s.Enrollment.Course.MentorId == UserId || IsAdmin) && (all || s.Grade == null));
+        return new
         {
-            s.Id,
-            s.ModuleKey,
-            s.Answer,
-            s.Grade,
-            s.Feedback,
-            s.RubricJson,
-            s.SubmittedAt,
-            courseId = s.Enrollment.CourseId,
-            courseTitle = s.Enrollment.Course.Title,
-            studentName = s.Enrollment.Student.FullName
-        }).ToListAsync();
+            total = await query.CountAsync(),
+            items = await query.OrderBy(s => s.Grade != null).ThenBy(s => s.SubmittedAt).ThenBy(s => s.Id)
+            .Skip((page - 1) * 50).Take(50).Select(s => new
+            {
+                s.Id,
+                s.ModuleKey,
+                s.Answer,
+                s.Grade,
+                s.Feedback,
+                s.RubricJson,
+                s.SubmittedAt,
+                courseId = s.Enrollment.CourseId,
+                courseTitle = s.Enrollment.Course.Title,
+                studentName = s.Enrollment.Student.FullName
+            }).ToListAsync()
+        };
+    }
 
     [HttpPost("submissions/{id:guid}/grade")]
     public async Task<IActionResult> Grade(Guid id, GradeRequest request)
