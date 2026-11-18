@@ -14,7 +14,7 @@ COPY src/SharpMind.Api/ src/SharpMind.Api/
 RUN dotnet publish src/SharpMind.Api -c Release --no-restore -o /out
 COPY --from=web /web/dist/ /out/wwwroot/
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.15 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0 AS runtime
 WORKDIR /app
 COPY --from=build /out/ ./
 RUN mkdir -p /app/data/media /app/data/keys && chown -R app:app /app/data
