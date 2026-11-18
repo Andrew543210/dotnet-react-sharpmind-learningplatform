@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { useAuth } from './AuthContext'
 import { api } from '../../shared/api'
-import { useAction } from '../../shared/hooks'
+import { useAction, useUnsaved } from '../../shared/hooks'
 import { Notice } from '../../shared/ui'
 
 export function AccountPage() {
   const { user } = useAuth()
   const action = useAction()
+  const [dirty, setDirty] = useState(false)
+  useUnsaved(dirty || action.pending)
   return (
     <div className="page narrow">
       <p className="eyebrow">ОСОБИСТІ НАЛАШТУВАННЯ</p>
@@ -20,6 +23,7 @@ export function AccountPage() {
       </div>
       <form
         className="panel"
+        onChange={() => setDirty(true)}
         onSubmit={(e) => {
           e.preventDefault()
           const form = e.currentTarget
@@ -30,6 +34,7 @@ export function AccountPage() {
               newPassword: data.get('newPassword'),
             })
             form.reset()
+            setDirty(false)
           }, 'Пароль змінено. Інші сесії більше не дійсні.')
         }}
       >

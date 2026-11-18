@@ -4,7 +4,7 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { api } from '../../shared/api'
 import type { User } from '../../shared/types'
-import { useAction } from '../../shared/hooks'
+import { useAction, useUnsaved } from '../../shared/hooks'
 import { Notice } from '../../shared/ui'
 
 export function AuthPage({ register = false }: { register?: boolean }) {
@@ -13,6 +13,8 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [show, setShow] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const allowNavigation = useUnsaved(dirty && !user)
   if (user)
     return (
       <div className="page narrow">
@@ -40,6 +42,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
         <p className="eyebrow">{register ? 'ПОЧНІМО ЗІ ЗНАЙОМСТВА' : 'ВАШЕ НАВЧАННЯ ЧЕКАЄ'}</p>
         <h2>{register ? 'Створити акаунт' : 'Увійти в SharpMind'}</h2>
         <form
+          onChange={() => setDirty(true)}
           onSubmit={(event) => {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
@@ -49,6 +52,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
                 password: form.get('password'),
                 ...(register ? { fullName: form.get('fullName') } : {}),
               })
+              allowNavigation()
               setUser(value)
               const next = params.get('next')
               navigate(

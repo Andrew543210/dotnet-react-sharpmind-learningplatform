@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../../shared/api'
-import { useAction, useApi } from '../../shared/hooks'
+import { useAction, useApi, useUnsaved, canDiscardChanges } from '../../shared/hooks'
+import { Pagination } from '../../shared/Pagination'
 import type { Role, User } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
 
@@ -24,6 +25,7 @@ export function AdminPage() {
         className="search"
         onSubmit={(e) => {
           e.preventDefault()
+          if (!canDiscardChanges()) return
           setSearch(String(new FormData(e.currentTarget).get('search') ?? ''))
           setPage(1)
         }}
@@ -49,17 +51,7 @@ export function AdminPage() {
               <UserForm key={u.id} user={u} refresh={query.refresh} />
             ))}
           </div>
-          <div className="pagination">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-              Попередня
-            </button>
-            <span>
-              {page} · Усього {query.data.total}
-            </span>
-            <button disabled={page * 50 >= query.data.total} onClick={() => setPage((p) => p + 1)}>
-              Наступна
-            </button>
-          </div>
+          <Pagination page={page} total={query.data.total} onChange={setPage} />
         </>
       )}
     </div>
@@ -70,6 +62,7 @@ function UserForm({ user, refresh }: { user: Account; refresh: () => void }) {
   const [role, setRole] = useState<Role>(user.role)
   const [disabled, setDisabled] = useState(user.isDisabled)
   const action = useAction()
+  useUnsaved(role !== user.role || disabled !== user.isDisabled || action.pending)
   return (
     <form
       className="panel user-row"

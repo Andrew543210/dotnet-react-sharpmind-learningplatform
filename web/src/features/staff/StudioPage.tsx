@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Plus } from 'lucide-react'
 import { api } from '../../shared/api'
-import { useAction, useApi } from '../../shared/hooks'
+import { useAction, useApi, useUnsaved, canDiscardChanges } from '../../shared/hooks'
 import type { Submission } from '../../shared/types'
 import { date, statuses } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
@@ -131,6 +131,7 @@ function EnrollmentList() {
           type="checkbox"
           checked={all}
           onChange={(e) => {
+            if (!canDiscardChanges()) return
             setAll(e.target.checked)
             setPage(1)
           }}
@@ -149,6 +150,7 @@ function EnrollmentList() {
 function DecisionForm({ enrollment: e, refresh }: { enrollment: Enrollment; refresh: () => void }) {
   const action = useAction()
   const [reason, setReason] = useState('')
+  useUnsaved((e.status === 'Pending' && Boolean(reason)) || action.pending)
   return (
     <article className="panel">
       <div className="section-heading">
@@ -181,6 +183,7 @@ function DecisionForm({ enrollment: e, refresh }: { enrollment: Enrollment; refr
                     status: 'Approved',
                     reason,
                   })
+                  setReason('')
                   refresh()
                 })
               }
@@ -196,6 +199,7 @@ function DecisionForm({ enrollment: e, refresh }: { enrollment: Enrollment; refr
                     status: 'Rejected',
                     reason,
                   })
+                  setReason('')
                   refresh()
                 })
               }
@@ -226,6 +230,7 @@ function ReviewList() {
           type="checkbox"
           checked={all}
           onChange={(e) => {
+            if (!canDiscardChanges()) return
             setAll(e.target.checked)
             setPage(1)
           }}
@@ -245,6 +250,8 @@ function ReviewList() {
 }
 function GradeForm({ submission: s, refresh }: { submission: Review; refresh: () => void }) {
   const action = useAction()
+  const [dirty, setDirty] = useState(false)
+  useUnsaved(dirty || action.pending)
   const [scores, setScores] = useState([0, 0, 0, 0])
   const criteria = [
     ['Коректність', 40],
@@ -271,6 +278,7 @@ function GradeForm({ submission: s, refresh }: { submission: Review; refresh: ()
         <p className="feedback">{s.feedback}</p>
       ) : (
         <form
+          onChange={() => setDirty(true)}
           onSubmit={(e) => {
             e.preventDefault()
             const feedback = new FormData(e.currentTarget).get('feedback')
@@ -282,6 +290,7 @@ function GradeForm({ submission: s, refresh }: { submission: Review; refresh: ()
                 clarity: scores[3],
                 feedback,
               })
+              setDirty(false)
               refresh()
             })
           }}

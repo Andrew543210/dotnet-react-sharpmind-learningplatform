@@ -13,10 +13,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthContext'
 import { api } from '../shared/api'
-import { useAction } from '../shared/hooks'
+import { useAction, useUnsavedNavigation } from '../shared/hooks'
 import { Loading, Notice } from '../shared/ui'
 
 export function Shell() {
+  useUnsavedNavigation()
   const { user, setUser } = useAuth()
   const location = useLocation()
   const main = useRef<HTMLElement>(null)

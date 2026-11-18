@@ -68,17 +68,31 @@ export function useUnsaved(dirty: boolean) {
     window.addEventListener('sharpmind:check-unsaved', check)
     return () => window.removeEventListener('sharpmind:check-unsaved', check)
   }, [dirty])
+  return () => {
+    allow.current = true
+  }
+}
+
+function hasUnsavedChanges() {
+  return !window.dispatchEvent(new Event('sharpmind:check-unsaved', { cancelable: true }))
+}
+
+export function canDiscardChanges() {
+  return !hasUnsavedChanges() || window.confirm('Є незбережені зміни. Залишити цю сторінку?')
+}
+
+// A single router blocker protects every registered form on the current page.
+export function useUnsavedNavigation() {
   useBeforeUnload(
-    useCallback(
-      (event: BeforeUnloadEvent) => {
-        if (dirty && !allow.current) event.preventDefault()
-      },
-      [dirty],
-    ),
+    useCallback((event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) event.preventDefault()
+    }, []),
   )
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      dirty && !allow.current && currentLocation.pathname !== nextLocation.pathname,
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search) &&
+      hasUnsavedChanges(),
   )
   useEffect(() => {
     if (blocker.state === 'blocked') {
@@ -86,9 +100,6 @@ export function useUnsaved(dirty: boolean) {
       else blocker.reset()
     }
   }, [blocker])
-  return () => {
-    allow.current = true
-  }
 }
 
 export function useDraft(key: string) {

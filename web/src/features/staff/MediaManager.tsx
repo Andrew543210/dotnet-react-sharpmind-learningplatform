@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { api } from '../../shared/api'
 import { useAction, useApi, useUnsaved } from '../../shared/hooks'
 import { ErrorState, Loading, Notice } from '../../shared/ui'
@@ -16,7 +16,8 @@ export function MediaManager({
 }) {
   const query = useApi<Media[]>(`/media/course/${courseId}`)
   const action = useAction()
-  useUnsaved(action.pending)
+  const [dirty, setDirty] = useState(false)
+  useUnsaved(dirty || action.pending)
   const form = useRef<HTMLFormElement>(null)
   return (
     <section className="panel">
@@ -61,6 +62,7 @@ export function MediaManager({
       {!locked && modules.length > 0 && (
         <form
           ref={form}
+          onChange={() => setDirty(true)}
           onSubmit={(e) => {
             e.preventDefault()
             const data = new FormData(e.currentTarget)
@@ -69,6 +71,7 @@ export function MediaManager({
             action.run(async () => {
               await api.upload(`/media/course/${courseId}/modules/${key}`, data)
               form.current?.reset()
+              setDirty(false)
               query.refresh()
             }, 'Медіаматеріал завантажено.')
           }}

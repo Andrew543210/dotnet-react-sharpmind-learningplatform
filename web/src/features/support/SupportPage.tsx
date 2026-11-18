@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../../shared/api'
-import { useAction, useApi, useDraft } from '../../shared/hooks'
+import { useAction, useApi, useDraft, useUnsaved } from '../../shared/hooks'
 import { date } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
 import { Pagination } from '../../shared/Pagination'
@@ -21,6 +21,7 @@ export function SupportPage() {
   const query = useApi<{ items: Ticket[]; total: number }>(`/support?page=${page}`)
   const [body, setBody] = useDraft(`support:${user!.id}`)
   const [subject, setSubject] = useState('')
+  useUnsaved(Boolean(subject))
   const [requestId, setRequestId] = useState(crypto.randomUUID())
   const action = useAction()
   return (
@@ -124,13 +125,17 @@ export function SupportPage() {
 }
 function ReplyForm({ ticket, refresh }: { ticket: Ticket; refresh: () => void }) {
   const action = useAction()
+  const [dirty, setDirty] = useState(false)
+  useUnsaved(dirty || action.pending)
   return (
     <form
+      onChange={() => setDirty(true)}
       onSubmit={(e) => {
         e.preventDefault()
         const reply = new FormData(e.currentTarget).get('reply')
         action.run(async () => {
           await api.send(`/support/${ticket.id}/reply`, { reply })
+          setDirty(false)
           refresh()
         })
       }}
