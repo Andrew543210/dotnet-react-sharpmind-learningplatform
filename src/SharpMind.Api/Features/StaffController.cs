@@ -15,7 +15,11 @@ public sealed class StaffController(AppDbContext db) : ApiController
     [HttpGet("courses")]
     public async Task<object> Courses() => await Owned.OrderBy(c => c.Title).Select(c => new
     {
-        c.Id, c.Title, c.IsPublished, c.IsArchived, c.Version,
+        c.Id,
+        c.Title,
+        c.IsPublished,
+        c.IsArchived,
+        c.Version,
         mentorName = c.Mentor.FullName,
         students = db.Enrollments.Count(e => e.CourseId == c.Id && e.Status == "Approved"),
         pending = db.Enrollments.Count(e => e.CourseId == c.Id && e.Status == "Pending"),
@@ -26,16 +30,37 @@ public sealed class StaffController(AppDbContext db) : ApiController
     public async Task<object> Course(int id)
     {
         var c = await Owned.AsNoTracking().SingleOrDefaultAsync(c => c.Id == id) ?? throw Missing();
-        return new { c.Id, c.Slug, c.Title, c.Description, c.Topic, c.Level, c.IsPublished, c.IsArchived, c.Version, c.MentorId,
-            content = Curriculum.FromJson(c.CurriculumJson), contentLocked = await db.Enrollments.AnyAsync(e => e.CourseId == id && e.Status == "Approved") };
+        return new
+        {
+            c.Id,
+            c.Slug,
+            c.Title,
+            c.Description,
+            c.Topic,
+            c.Level,
+            c.IsPublished,
+            c.IsArchived,
+            c.Version,
+            c.MentorId,
+            content = Curriculum.FromJson(c.CurriculumJson),
+            contentLocked = await db.Enrollments.AnyAsync(e => e.CourseId == id && e.Status == "Approved")
+        };
     }
 
     [HttpPost("courses")]
     public async Task<object> Create(CourseRequest request)
     {
         ValidateDraft(request.Content);
-        var c = new Course { Slug = request.Slug, Title = request.Title.Trim(), Description = request.Description.Trim(),
-            Topic = request.Topic, Level = request.Level, MentorId = UserId, CurriculumJson = request.Content.ToJson() };
+        var c = new Course
+        {
+            Slug = request.Slug,
+            Title = request.Title.Trim(),
+            Description = request.Description.Trim(),
+            Topic = request.Topic,
+            Level = request.Level,
+            MentorId = UserId,
+            CurriculumJson = request.Content.ToJson()
+        };
         db.Courses.Add(c);
         await db.SaveChangesAsync();
         return new { c.Id };
@@ -97,8 +122,16 @@ public sealed class StaffController(AppDbContext db) : ApiController
 
     [HttpGet("enrollments")]
     public async Task<object> Enrollments() => await db.Enrollments.Where(e => e.Course.MentorId == UserId || IsAdmin)
-        .OrderByDescending(e => e.RequestedAt).Take(200).Select(e => new { e.Id, e.CourseId, courseTitle = e.Course.Title,
-            studentName = e.Student.FullName, e.Status, e.DecisionReason, e.RequestedAt }).ToListAsync();
+        .OrderByDescending(e => e.RequestedAt).Take(200).Select(e => new
+        {
+            e.Id,
+            e.CourseId,
+            courseTitle = e.Course.Title,
+            studentName = e.Student.FullName,
+            e.Status,
+            e.DecisionReason,
+            e.RequestedAt
+        }).ToListAsync();
 
     [HttpPost("enrollments/{id:int}/decision")]
     public async Task<IActionResult> Decide(int id, EnrollmentDecision request)
@@ -121,8 +154,19 @@ public sealed class StaffController(AppDbContext db) : ApiController
 
     [HttpGet("submissions")]
     public async Task<object> Submissions() => await db.Submissions.Where(s => s.Enrollment.Course.MentorId == UserId || IsAdmin)
-        .OrderBy(s => s.Grade != null).ThenBy(s => s.SubmittedAt).Take(200).Select(s => new { s.Id, s.ModuleKey, s.Answer, s.Grade, s.Feedback, s.RubricJson,
-            s.SubmittedAt, courseId = s.Enrollment.CourseId, courseTitle = s.Enrollment.Course.Title, studentName = s.Enrollment.Student.FullName }).ToListAsync();
+        .OrderBy(s => s.Grade != null).ThenBy(s => s.SubmittedAt).Take(200).Select(s => new
+        {
+            s.Id,
+            s.ModuleKey,
+            s.Answer,
+            s.Grade,
+            s.Feedback,
+            s.RubricJson,
+            s.SubmittedAt,
+            courseId = s.Enrollment.CourseId,
+            courseTitle = s.Enrollment.Course.Title,
+            studentName = s.Enrollment.Student.FullName
+        }).ToListAsync();
 
     [HttpPost("submissions/{id:guid}/grade")]
     public async Task<IActionResult> Grade(Guid id, GradeRequest request)
@@ -153,8 +197,20 @@ public sealed class StaffController(AppDbContext db) : ApiController
     {
         Require(content is not null && content.Outcomes is not null && content.Prerequisites is not null
             && content.Modules is not null && content.FinalQuestions is not null, "Неповна структура програми.");
-        Require(content!.Modules.Length <= 20 && content.ToJson().Length <= 800000 && content.Modules.All(m => m is not null
-            && m.Questions is not null && m.Lesson is not null && m.Practice is not null && m.Title is not null && m.Key is not null),
+        Require(content.Outcomes.Length <= 12 && content.Outcomes.All(x => x is not null && x.Length <= 500)
+            && content.Prerequisites.Length <= 2000 && content.Modules.Length <= 20 && content.ToJson().Length <= 800000
+            && content.Modules.All(m => m is not null && m.Questions is not null && m.Lesson is not null
+                && m.Lesson.Length <= 40000 && m.Practice is not null && m.Practice.Length <= 12000
+                && m.Title is not null && m.Title.Length <= 160 && m.Minutes is >= 20 and <= 1200
+                && !string.IsNullOrWhiteSpace(m.Key) && m.Key.Length <= 60 && m.Key != "final"
+                && System.Text.RegularExpressions.Regex.IsMatch(m.Key, "^[a-z0-9-]+$")),
             "Програма має некоректну структуру або завелика.");
+        Require(content.Modules.Select(m => m.Key).Distinct().Count() == content.Modules.Length, "Ключі модулів мають бути унікальними.");
+        foreach (var questions in content.Modules.Select(m => m.Questions).Append(content.FinalQuestions))
+            Require(questions.Length <= 10 && questions.All(q => q is not null && !string.IsNullOrWhiteSpace(q.Id)
+                && q.Id.Length <= 60 && q.Text is not null && q.Text.Length <= 1000 && q.Explanation is not null
+                && q.Explanation.Length <= 2000 && q.Options is { Length: 4 } && q.Options.All(o => o is not null && o.Length <= 1000)
+                && q.Correct is >= 0 and <= 3) && questions.Select(q => q.Id).Distinct().Count() == questions.Length,
+                "Неправильна структура питань чернетки.");
     }
 }

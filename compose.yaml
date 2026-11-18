@@ -15,5 +15,29 @@ services:
       timeout: 3s
       retries: 20
     restart: unless-stopped
+  app:
+    profiles: ["app"]
+    image: sharpmind-local:dev
+    build: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: Host=db;Database=sharpmind;Username=sharpmind;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      Demo__Password: ${Demo__Password:-}
+      Content__MentorEmail: ${Content__MentorEmail:-mentor@demo.sharpmind.test}
+      Bootstrap__Email: ${Bootstrap__Email:-}
+      Bootstrap__FullName: ${Bootstrap__FullName:-Адміністратор}
+      Bootstrap__Password: ${Bootstrap__Password:-}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    volumes:
+      - media-data:/app/data/media
+      - keys-data:/app/data/keys
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   postgres-data:
+  media-data:
+  keys-data:

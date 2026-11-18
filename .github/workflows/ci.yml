@@ -1,0 +1,73 @@
+name: Verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.7
+        env:
+          POSTGRES_DB: sharpmind
+          POSTGRES_USER: sharpmind
+          POSTGRES_PASSWORD: ci-only-disposable-database
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sharpmind"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      SHARPMIND_TEST_CONNECTION: Host=localhost;Port=5432;Database=sharpmind;Username=sharpmind;Password=ci-only-disposable-database
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: sharpmind
+      PGPASSWORD: ci-only-disposable-database
+      DOTNET_NOLOGO: "true"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: dotnet tool restore
+      - run: dotnet restore --locked-mode
+      - run: dotnet build --no-restore -c Release
+      - run: dotnet test --no-restore -c Release --logger "trx;LogFileName=backend.trx"
+      - run: dotnet ef migrations has-pending-model-changes --project src/SharpMind.Api
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__Database: Host=localhost;Port=5432;Database=sharpmind;Username=sharpmind;Password=ci-only-disposable-database
+      - run: npm ci --prefix web
+      - run: npm run lint --prefix web -- --deny-warnings
+      - run: npm run format:check --prefix web
+      - run: npm run typecheck --prefix web
+      - run: npm test --prefix web
+      - run: npm run build --prefix web
+      - run: node scripts/audit-dependencies.mjs
+      - run: dotnet list package --vulnerable --include-transitive --format json > dependency-audit.json
+      - run: node scripts/check-dotnet-audit.mjs dependency-audit.json
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: node scripts/e2e.mjs
+      - run: node scripts/publish.mjs
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: verification-results
+          path: |
+            tests/**/TestResults/*.trx
+            web/playwright-report
+            web/test-results
+            dependency-audit.json
+            docs/screenshots

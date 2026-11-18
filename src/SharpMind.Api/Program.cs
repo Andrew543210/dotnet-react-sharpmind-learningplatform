@@ -6,6 +6,14 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SharpMind.Api.Domain;
 using SharpMind.Api.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
+
+if (args.Contains("--healthcheck"))
+{
+    try { using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) }; Environment.Exit((await http.GetAsync("http://localhost:8080/api/health/ready")).IsSuccessStatusCode ? 0 : 1); }
+    catch { Environment.Exit(1); }
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
@@ -53,6 +61,17 @@ else if (builder.Environment.IsProduction()) throw new InvalidOperationException
 builder.Services.AddControllers();
 builder.Services.AddScoped<SharpMind.Api.Features.LearningService>();
 builder.Services.AddProblemDetails();
+var proxyAddress = builder.Configuration["ReverseProxy:Address"];
+if (!string.IsNullOrWhiteSpace(proxyAddress))
+{
+    if (!System.Net.IPAddress.TryParse(proxyAddress, out var proxyIp)) throw new InvalidOperationException("ReverseProxy__Address must be the trusted proxy IP address.");
+    builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    {
+        o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        o.KnownIPNetworks.Clear(); o.KnownProxies.Clear(); o.KnownProxies.Add(proxyIp);
+        o.ForwardLimit = 1;
+    });
+}
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
@@ -74,10 +93,11 @@ if (args.Any(x => x.StartsWith("--migrate", StringComparison.Ordinal) || x.Start
     await DatabaseSetup.Run(app.Services, app.Configuration, app.Environment, args);
     return;
 }
+if (!string.IsNullOrWhiteSpace(proxyAddress)) app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseHsts();
-    app.UseHttpsRedirection();
+    app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api/health"), branch => branch.UseHttpsRedirection());
 }
 app.Use(async (ctx, next) =>
 {
@@ -89,6 +109,8 @@ app.Use(async (ctx, next) =>
     try { await next(); }
     catch (RuleException ex) { await Results.Problem(ex.Message, statusCode: ex.Status, title: ex.Message).ExecuteAsync(ctx); }
     catch (AntiforgeryValidationException) { await Results.Problem(statusCode: 400, title: "Оновіть сторінку та повторіть дію.").ExecuteAsync(ctx); }
+    catch (BadHttpRequestException ex) { await Results.Problem(statusCode: ex.StatusCode, title: "Некоректний або завеликий запит.").ExecuteAsync(ctx); }
+    catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested) { ctx.Response.StatusCode = 499; }
     catch (DbUpdateConcurrencyException) { await Results.Problem(statusCode: 409, title: "Дані змінилися. Оновіть сторінку.").ExecuteAsync(ctx); }
     catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
     { await Results.Problem(statusCode: 409, title: "Такий запис уже існує. Оновіть сторінку.").ExecuteAsync(ctx); }
