@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<Certificate> Certificates => Set<Certificate>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<CourseMedia> CourseMedia => Set<CourseMedia>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -82,6 +83,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             e.Property(x => x.Message).HasMaxLength(4000);
             e.Property(x => x.Reply).HasMaxLength(4000);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<CourseMedia>(e =>
+        {
+            e.HasIndex(x => new { x.CourseId, x.ModuleKey });
+            e.Property(x => x.ModuleKey).HasMaxLength(60);
+            e.Property(x => x.Title).HasMaxLength(160);
+            e.Property(x => x.ContentType).HasMaxLength(40);
+            e.Property(x => x.Transcript).HasMaxLength(12000);
+            e.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Restrict);
+            e.ToTable(t => t.HasCheckConstraint("CK_Media_Length", "\"Length\" > 0 AND \"Length\" <= 104857600"));
         });
     }
 

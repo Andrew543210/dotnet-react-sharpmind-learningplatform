@@ -93,3 +93,16 @@ public sealed class SupportTicket
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
 }
+
+public sealed class CourseMedia
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int CourseId { get; set; }
+    public Course Course { get; set; } = null!;
+    public string ModuleKey { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public string Transcript { get; set; } = "";
+    public long Length { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}

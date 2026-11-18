@@ -268,6 +268,51 @@ namespace SharpMind.Api.Infrastructure.Migrations
                     b.ToTable("Courses");
                 });
 
+            modelBuilder.Entity("SharpMind.Api.Domain.CourseMedia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Length")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ModuleKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Transcript")
+                        .IsRequired()
+                        .HasMaxLength(12000)
+                        .HasColumnType("character varying(12000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "ModuleKey");
+
+                    b.ToTable("CourseMedia", t =>
+                        {
+                            t.HasCheckConstraint("CK_Media_Length", "\"Length\" > 0 AND \"Length\" <= 104857600");
+                        });
+                });
+
             modelBuilder.Entity("SharpMind.Api.Domain.Enrollment", b =>
                 {
                     b.Property<int>("Id")
@@ -496,6 +541,17 @@ namespace SharpMind.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Mentor");
+                });
+
+            modelBuilder.Entity("SharpMind.Api.Domain.CourseMedia", b =>
+                {
+                    b.HasOne("SharpMind.Api.Domain.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Course");
                 });
 
             modelBuilder.Entity("SharpMind.Api.Domain.Enrollment", b =>

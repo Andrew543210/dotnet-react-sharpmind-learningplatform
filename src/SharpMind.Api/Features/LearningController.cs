@@ -25,7 +25,9 @@ public sealed class LearningController(AppDbContext db, LearningService learning
     {
         var (e, content) = await Access(courseId);
         var m = content.Modules.SingleOrDefault(m => m.Key == key) ?? throw Missing();
-        return new { m.Key, m.Title, m.Minutes, m.Lesson, m.Practice, status = await learning.Status(e, content) };
+        return new { m.Key, m.Title, m.Minutes, m.Lesson, m.Practice, status = await learning.Status(e, content),
+            media = await db.CourseMedia.Where(x => x.CourseId == courseId && x.ModuleKey == key).OrderBy(x => x.CreatedAt)
+                .Select(x => new { x.Id, x.Title, x.ContentType, x.Transcript, x.Length }).ToListAsync() };
     }
 
     [HttpPost("modules/{key}/complete")]

@@ -50,6 +50,9 @@ public sealed class StaffController(AppDbContext db) : ApiController
         Require(IsAdmin || c.MentorId == UserId, "Курс не знайдено.", 404);
         Require(c.Version == request.Version, "Курс уже змінено. Оновіть сторінку перед редагуванням.", 409);
         var changed = Curriculum.FromJson(c.CurriculumJson).ToJson() != request.Content.ToJson();
+        var moduleKeys = request.Content.Modules.Select(m => m.Key).ToArray();
+        Require(!await db.CourseMedia.AnyAsync(m => m.CourseId == id && !moduleKeys.Contains(m.ModuleKey)),
+            "Перед видаленням модуля видаліть його медіаматеріали.", 409);
         Require(!changed || !await db.Enrollments.AnyAsync(e => e.CourseId == id && e.Status == "Approved"),
             "За цим курсом уже навчаються. Створіть новий курс для зміненої програми.", 409);
         if (c.IsPublished) Require(request.Content.Validate() is null, request.Content.Validate() ?? "Некоректна програма.");
