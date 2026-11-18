@@ -27,6 +27,9 @@ public static class DatabaseSetup
             var password = config["Demo:Password"] ?? throw new InvalidOperationException("Set Demo__Password (15–128 characters).");
             await CreateUser(users, "admin@demo.sharpmind.test", "Адміністратор демо", "Admin", password);
             await CreateUser(users, "mentor@demo.sharpmind.test", "Олександр Коваль", "Mentor", password);
+            await CreateUser(users, "mentor2@demo.sharpmind.test", "Ірина Мельник", "Mentor", password);
+            await CreateUser(users, "mentor3@demo.sharpmind.test", "Данило Бондар", "Mentor", password);
+            await CreateUser(users, "mentor4@demo.sharpmind.test", "Софія Ткаченко", "Mentor", password);
             await CreateUser(users, "student@demo.sharpmind.test", "Марія Шевченко", "Student", password);
         }
         if (args.Contains("--seed-content"))
@@ -41,8 +44,14 @@ public static class DatabaseSetup
                 var error = seed.Content.Validate();
                 if (error is not null) throw new InvalidOperationException($"{Path.GetFileName(file)}: {error}");
                 if (await db.Courses.AnyAsync(c => c.Slug == seed.Slug)) continue;
+                var owner = mentor;
+                if (args.Contains("--seed-demo"))
+                {
+                    var email = seed.Topic switch { "WebDevelopment" => "mentor2@demo.sharpmind.test", "DataScience" => "mentor3@demo.sharpmind.test", "DevOps" => "mentor4@demo.sharpmind.test", _ => mentorEmail };
+                    owner = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException("Missing demo mentor.");
+                }
                 db.Courses.Add(new Course { Slug = seed.Slug, Title = seed.Title, Description = seed.Description,
-                    Topic = seed.Topic, Level = seed.Level, MentorId = mentor.Id, CurriculumJson = seed.Content.ToJson(), IsPublished = true });
+                    Topic = seed.Topic, Level = seed.Level, MentorId = owner.Id, CurriculumJson = seed.Content.ToJson(), IsPublished = true });
             }
             await db.SaveChangesAsync();
         }
