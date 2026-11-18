@@ -50,6 +50,8 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Testing
           ConnectionStrings__Database: Host=localhost;Port=5432;Database=sharpmind;Username=sharpmind;Password=ci-only-disposable-database
       - run: npm ci --prefix web
+      - run: node scripts/third-party-notices.mjs
+      - run: git diff --exit-code -- web/public/third-party-notices.txt
       - run: npm run lint --prefix web -- --deny-warnings
       - run: npm run format:check --prefix web
       - run: npm run typecheck --prefix web
@@ -61,6 +63,7 @@ jobs:
       - run: npx --prefix web playwright install --with-deps chromium
       - run: node scripts/e2e.mjs
       - run: node scripts/publish.mjs
+      - run: docker build --progress=plain -t sharpmind:ci .
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
         with:

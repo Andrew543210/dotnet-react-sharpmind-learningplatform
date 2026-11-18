@@ -22,3 +22,4 @@ secrets/
 work/
 .DS_Store
 Thumbs.db
+dependency-audit.json
