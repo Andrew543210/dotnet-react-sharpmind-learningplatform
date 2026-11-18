@@ -22,7 +22,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Database: Host=db;Database=sharpmind;Username=sharpmind;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      ConnectionStrings__Database: Host=db;Database=sharpmind;Username=sharpmind;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD};GSS Encryption Mode=Disable
       Demo__Password: ${Demo__Password:-}
       Content__MentorEmail: ${Content__MentorEmail:-mentor@demo.sharpmind.test}
       Bootstrap__Email: ${Bootstrap__Email:-}
