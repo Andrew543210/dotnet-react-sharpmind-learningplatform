@@ -124,7 +124,7 @@ export function CoursePage() {
           <CourseCover course={course} />
           <div className="panel enrollment-panel">
             <span className="eyebrow">НАВЧАННЯ З МЕНТОРОМ</span>
-            <h2>Безоплатно</h2>
+            <h2>Безкоштовно</h2>
             <p>Повні матеріали, перевірка робіт і сертифікат за результатами.</p>
             {status && (
               <>

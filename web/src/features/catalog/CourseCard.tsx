@@ -60,7 +60,7 @@ export function CourseCard({ course }: { course: Course }) {
         </div>
         <div className="card-bottom">
           <span>{course.mentorName}</span>
-          <strong>Безоплатно</strong>
+          <strong>Безкоштовно</strong>
         </div>
       </div>
     </article>
