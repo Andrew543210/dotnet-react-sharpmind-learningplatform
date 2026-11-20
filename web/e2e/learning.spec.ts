@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { readFileSync, mkdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 type Content = {
@@ -21,6 +21,20 @@ async function login(page: Page, email: string) {
   await page.getByRole('button', { name: 'Увійти', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Вийти', exact: true })).toBeVisible()
 }
+// Screenshots go to test-results by default so a test run never rewrites the
+// documentation; set SCREENSHOT_DIR=../docs/screenshots to refresh the README images.
+const screenshotDir = process.env.SCREENSHOT_DIR ?? 'test-results/screenshots'
+async function capture(page: Page, name: string) {
+  await page.screenshot({ path: resolve(screenshotDir, `${name}.png`), fullPage: true })
+}
+async function accessible(page: Page) {
+  const result = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze()
+  expect(
+    result.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) })),
+  ).toEqual([])
+}
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
@@ -33,14 +47,8 @@ test('ten complete courses, filters, accessible catalog and responsive layouts',
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 1000 })
     await noOverflow(page)
-    const result = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      .analyze()
-    expect(
-      result.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) })),
-    ).toEqual([])
-    mkdirSync('../docs/screenshots', { recursive: true })
-    await page.screenshot({ path: `../docs/screenshots/catalog-${width}.png`, fullPage: true })
+    await accessible(page)
+    await capture(page, `catalog-${width}`)
   }
   await page.getByRole('button', { name: 'DevOps', exact: true }).click()
   await expect(page.locator('.course-card')).toHaveCount(1)
@@ -79,14 +87,16 @@ test('student request, mentor decision, learning, grading and verifiable certifi
     await student.getByRole('button', { name: 'Позначити прочитаним' }).click()
     await expect(student.getByRole('button', { name: 'Прочитано', exact: true })).toBeDisabled()
     if (module.key === 'state') {
-      await student.screenshot({ path: '../docs/screenshots/lesson-desktop.png', fullPage: true })
+      await accessible(student)
+      await capture(student, 'lesson-desktop')
       await student.setViewportSize({ width: 390, height: 844 })
       await noOverflow(student)
-      await student.screenshot({ path: '../docs/screenshots/lesson-mobile.png', fullPage: true })
+      await capture(student, 'lesson-mobile')
       await student.setViewportSize({ width: 1440, height: 1000 })
     }
     await student.goto(`/quiz/${courseId}/${module.key}`)
     await expect(student.locator('fieldset.question')).toHaveCount(10)
+    if (module.key === 'state') await accessible(student)
     for (const q of module.questions)
       await student.locator(`input[name="${q.id}"][value="${q.correct}"]`).check()
     await student.getByRole('button', { name: 'Завершити тест', exact: true }).click()
@@ -125,7 +135,8 @@ test('student request, mentor decision, learning, grading and verifiable certifi
   await student.getByRole('button', { name: 'Отримати сертифікат' }).click()
   await expect(student.getByRole('heading', { name: 'Марія Шевченко', exact: true })).toBeVisible()
   const certificateUrl = student.url()
-  await student.screenshot({ path: '../docs/screenshots/certificate.png', fullPage: true })
+  await accessible(student)
+  await capture(student, 'certificate')
   const anonymous = await browser.newPage()
   await anonymous.goto(certificateUrl)
   await expect(anonymous.getByText('Справжність підтверджено', { exact: false })).toBeVisible()
@@ -200,7 +211,7 @@ test('mentor can add photo and video materials; student cannot use studio', asyn
     .toBeGreaterThan(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await noOverflow(page)
-  await page.screenshot({ path: '../docs/screenshots/media-mobile.png', fullPage: true })
+  await capture(page, 'media-mobile')
   await page.getByRole('button', { name: 'Вийти', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Створити акаунт', exact: true })).toBeVisible()
   await login(page, 'student@demo.sharpmind.test')

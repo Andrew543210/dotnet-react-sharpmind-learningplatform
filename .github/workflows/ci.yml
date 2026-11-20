@@ -73,4 +73,3 @@ jobs:
             web/playwright-report
             web/test-results
             dependency-audit.json
-            docs/screenshots
