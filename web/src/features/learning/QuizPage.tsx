@@ -9,11 +9,15 @@ import { ErrorState, Loading, Notice } from '../../shared/ui'
 type Quiz = {
   key: string
   passScore: number
+  dailyAttempts: number
+  cooldownSeconds: number
   questions: { id: string; text: string; options: { value: number; text: string }[] }[]
   attempts: { id: string; score: number; submittedAt: string }[]
 }
 type Result = {
   score: number
+  passed: boolean
+  // Empty after a failed attempt: the server reveals correct options only after a pass.
   feedback: {
     id: string
     text: string
@@ -27,10 +31,19 @@ export function QuizPage() {
   const { id, key } = useParams()
   const query = useApi<Quiz>(`/learning/${id}/quizzes/${key}`)
   if (query.loading) return <Loading />
-  if (query.error || !query.data) return <ErrorState error={query.error} retry={query.refresh} />
-  return <QuizForm key={`${id}-${key}`} quiz={query.data} courseId={id!} />
+  if (query.error || !query.data)
+    return <ErrorState error={query.error} retry={query.refresh} />
+  return <QuizForm key={`${id}-${key}`} quiz={query.data} courseId={id!} refresh={query.refresh} />
 }
-function QuizForm({ quiz, courseId }: { quiz: Quiz; courseId: string }) {
+function QuizForm({
+  quiz,
+  courseId,
+  refresh,
+}: {
+  quiz: Quiz
+  courseId: string
+  refresh: () => void
+}) {
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [requestId, setRequestId] = useState(crypto.randomUUID())
   const [result, setResult] = useState<Result | null>(null)
@@ -49,8 +62,9 @@ function QuizForm({ quiz, courseId }: { quiz: Quiz; courseId: string }) {
         10 питань · одна правильна відповідь · прохідний результат {quiz.passScore}%.
       </p>
       <p className="muted">
-        Між спробами — 60 секунд. До {quiz.key === 'final' ? '5' : '10'} спроб за 24 години. Кращий
-        результат зберігається.
+        Між спробами — {quiz.cooldownSeconds} секунд. До {quiz.dailyAttempts} спроб за 24 години.
+        Кращий результат зберігається. Правильні відповіді й пояснення відкриваються після успішної
+        спроби.
       </p>
       {passed && !result ? (
         <div className="panel result-card">
@@ -66,63 +80,72 @@ function QuizForm({ quiz, courseId }: { quiz: Quiz; courseId: string }) {
         <>
           <div className="panel result-card">
             <span className="result-score">{result.score}%</span>
-            <h2>
-              {result.score >= quiz.passScore ? 'Знання підтверджено' : 'Є над чим попрацювати'}
-            </h2>
+            <h2>{result.passed ? 'Знання підтверджено' : 'Є над чим попрацювати'}</h2>
             <p>
-              {result.score >= quiz.passScore
-                ? 'Результат збережено. Продовжуйте свій маршрут.'
-                : 'Перегляньте пояснення, поверніться до уроку й спробуйте ще раз.'}
+              {result.passed
+                ? 'Результат збережено. Нижче — пояснення до кожного питання.'
+                : `Правильних відповідей: ${Math.round((result.score * quiz.questions.length) / 100)} з ${quiz.questions.length}. Поверніться до уроку й спробуйте знову не раніше ніж за ${quiz.cooldownSeconds} секунд.`}
             </p>
             <Link className="button" to={`/courses/${courseId}`}>
               До програми
               <ArrowRight size={16} />
             </Link>
-            {result.score < quiz.passScore && (
+            {!result.passed && quiz.key !== 'final' && (
+              <Link className="button secondary" to={`/learn/${courseId}/${quiz.key}`}>
+                <ArrowLeft size={16} />
+                До уроку
+              </Link>
+            )}
+            {!result.passed && (
               <button
                 className="button secondary"
                 onClick={() => {
                   setAnswers({})
                   setResult(null)
                   setRequestId(crypto.randomUUID())
+                  // Reload to reshuffle options and show the updated attempt history.
+                  refresh()
                 }}
               >
                 Нова спроба
               </button>
             )}
           </div>
-          <div className="quiz-feedback">
-            {result.feedback.map((q, i) => (
-              <div
-                className={`panel ${q.correct === q.selected ? 'correct' : 'incorrect'}`}
-                key={q.id}
-              >
-                <h3>
-                  {i + 1}. {q.text}
-                </h3>
-                <p>Ваша відповідь: {q.options[q.selected]}</p>
-                {q.correct !== q.selected && (
-                  <p>
-                    <strong>Правильна: {q.options[q.correct]}</strong>
-                  </p>
-                )}
-                <p className="muted">{q.explanation}</p>
-              </div>
-            ))}
-          </div>
+          {result.feedback.length > 0 && (
+            <div className="quiz-feedback">
+              {result.feedback.map((q, i) => (
+                <div
+                  className={`panel ${q.correct === q.selected ? 'correct' : 'incorrect'}`}
+                  key={q.id}
+                >
+                  <h3>
+                    {i + 1}. {q.text}
+                  </h3>
+                  <p>Ваша відповідь: {q.options[q.selected]}</p>
+                  {q.correct !== q.selected && (
+                    <p>
+                      <strong>Правильна: {q.options[q.correct]}</strong>
+                    </p>
+                  )}
+                  <p className="muted">{q.explanation}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            action.run(async () =>
+            action.run(async () => {
               setResult(
                 await api.send<Result>(`/learning/${courseId}/quizzes/${quiz.key}`, {
                   requestId,
                   answers,
                 }),
-              ),
-            )
+              )
+              refresh()
+            })
           }}
         >
           <div className="quiz-count" role="status">

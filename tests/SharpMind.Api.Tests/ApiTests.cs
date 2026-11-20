@@ -56,7 +56,9 @@ public sealed class ApiTests : IClassFixture<ApiFixture>
             var requestId = Guid.NewGuid();
             var body = new { requestId, answers };
             var submitted = await f.Send(student, $"/api/learning/{f.CourseId}/quizzes/{module.Key}", body); submitted.EnsureSuccessStatusCode();
-            Assert.Equal(100, (await submitted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("score").GetInt32());
+            var passed = await submitted.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(100, passed.GetProperty("score").GetInt32());
+            Assert.Equal(module.Questions.Length, passed.GetProperty("feedback").GetArrayLength());
             (await f.Send(student, $"/api/learning/{f.CourseId}/quizzes/{module.Key}", body)).EnsureSuccessStatusCode();
             Assert.Equal(HttpStatusCode.Conflict, (await f.Send(student, $"/api/learning/{f.CourseId}/quizzes/{module.Key}", new { requestId = Guid.NewGuid(), answers })).StatusCode);
             var submissionId = Guid.NewGuid(); var answer = new string('x', 120);
@@ -79,6 +81,29 @@ public sealed class ApiTests : IClassFixture<ApiFixture>
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(2, await db.LessonCompletions.CountAsync(x => x.Enrollment.StudentId == f.StudentId && x.Enrollment.CourseId == f.CourseId));
         Assert.Equal(1, await db.Certificates.CountAsync(x => x.Enrollment.StudentId == f.StudentId));
+    }
+
+    [Fact]
+    public async Task FailedQuizAttemptDoesNotRevealCorrectAnswers()
+    {
+        using var student = await f.Login("other"); using var mentor = await f.Login("mentor");
+        await f.Approve(student, mentor);
+        var module = f.Content.Modules[0];
+        var path = $"/api/learning/{f.CourseId}/quizzes/{module.Key}";
+        var wrong = module.Questions.ToDictionary(q => q.Id, q => (q.Correct + 1) % 4);
+        var body = new { requestId = Guid.NewGuid(), answers = wrong };
+        foreach (var response in new[] { await f.Send(student, path, body), await f.Send(student, path, body) })
+        {
+            response.EnsureSuccessStatusCode();
+            var raw = await response.Content.ReadAsStringAsync();
+            var result = JsonDocument.Parse(raw).RootElement;
+            Assert.Equal(0, result.GetProperty("score").GetInt32());
+            Assert.False(result.GetProperty("passed").GetBoolean());
+            Assert.Empty(result.GetProperty("feedback").EnumerateArray());
+            Assert.DoesNotContain("\"correct\"", raw);
+            Assert.DoesNotContain("\"explanation\"", raw);
+        }
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await f.Send(student, path, new { requestId = Guid.NewGuid(), answers = wrong })).StatusCode);
     }
 
     [Fact]

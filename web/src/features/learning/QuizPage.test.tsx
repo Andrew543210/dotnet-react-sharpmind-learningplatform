@@ -11,6 +11,8 @@ describe('Quiz workflow', () => {
     vi.spyOn(api, 'get').mockResolvedValue({
       key: 'state',
       passScore: 70,
+      dailyAttempts: 10,
+      cooldownSeconds: 60,
       attempts: [],
       questions: Array.from({ length: 10 }, (_, i) => ({
         id: `q${i}`,
@@ -40,9 +42,56 @@ describe('Quiz workflow', () => {
       answers: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`q${i}`, 0])),
     })
     expect(screen.getByRole('button', { name: 'Перевіряємо…' })).toBeDisabled()
-    resolve({ score: 80, feedback: [] })
+    resolve({
+      score: 80,
+      passed: true,
+      feedback: [
+        {
+          id: 'q0',
+          text: 'Question 1',
+          selected: 0,
+          correct: 1,
+          options: ['Answer 1-0', 'Answer 1-1', 'Answer 1-2', 'Answer 1-3'],
+          explanation: 'Explanation for the first question',
+        },
+      ],
+    })
     expect(await screen.findByRole('heading', { name: 'Знання підтверджено' })).toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
+    expect(screen.getByText('Explanation for the first question')).toBeInTheDocument()
+    expect(screen.getByText('Правильна: Answer 1-1')).toBeInTheDocument()
+  })
+
+  it('shows only the score after a failed attempt and offers the lesson', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'get').mockResolvedValue({
+      key: 'state',
+      passScore: 70,
+      dailyAttempts: 10,
+      cooldownSeconds: 60,
+      attempts: [],
+      questions: Array.from({ length: 10 }, (_, i) => ({
+        id: `q${i}`,
+        text: `Question ${i}`,
+        options: [{ value: 0, text: `Choice ${i}` }],
+      })),
+    })
+    vi.spyOn(api, 'send').mockResolvedValue({ score: 30, passed: false, feedback: [] })
+    render(
+      <RouterProvider
+        router={createMemoryRouter([{ path: '/quiz/:id/:key', element: <QuizPage /> }], {
+          initialEntries: ['/quiz/1/state'],
+        })}
+      />,
+    )
+    for (const choice of await screen.findAllByLabelText(/^Choice \d+$/)) fireEvent.click(choice)
+    await user.click(screen.getByRole('button', { name: 'Завершити тест' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Є над чим попрацювати' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Правильних відповідей: 3 з 10/)).toBeInTheDocument()
+    expect(screen.queryByText(/Правильна:/)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'До уроку' })).toHaveAttribute('href', '/learn/1/state')
   })
 
   it('retains chosen answers when the server rejects a request', async () => {
@@ -50,6 +99,8 @@ describe('Quiz workflow', () => {
     vi.spyOn(api, 'get').mockResolvedValue({
       key: 'state',
       passScore: 70,
+      dailyAttempts: 10,
+      cooldownSeconds: 60,
       attempts: [],
       questions: Array.from({ length: 10 }, (_, i) => ({
         id: `q${i}`,

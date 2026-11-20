@@ -46,6 +46,10 @@ public static class LearningRules
     public const int ModulePass = 70;
     public const int PracticePass = 60;
     public const int FinalPass = 80;
+    public const int QuizCooldownSeconds = 60;
+
+    public static int PassScore(string assessmentKey) => assessmentKey == "final" ? FinalPass : ModulePass;
+    public static int DailyAttempts(string assessmentKey) => assessmentKey == "final" ? 5 : 10;
 
     public static int Score(Question[] questions, IReadOnlyDictionary<string, int> answers)
     {

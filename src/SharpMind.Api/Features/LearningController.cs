@@ -61,7 +61,9 @@ public sealed class LearningController(AppDbContext db, LearningService learning
         return new
         {
             key,
-            passScore = key == "final" ? LearningRules.FinalPass : LearningRules.ModulePass,
+            passScore = LearningRules.PassScore(key),
+            dailyAttempts = LearningRules.DailyAttempts(key),
+            cooldownSeconds = LearningRules.QuizCooldownSeconds,
             questions = questions.Select(q => new { q.Id, q.Text, options = q.Options.Select((text, index) => new { value = index, text }).OrderBy(_ => RandomNumberGenerator.GetInt32(int.MaxValue)) }),
             attempts = status.Attempts.Where(a => a.AssessmentKey == key)
         };
@@ -82,18 +84,19 @@ public sealed class LearningController(AppDbContext db, LearningService learning
             Require(existing.EnrollmentId == e.Id && existing.AssessmentKey == key
                 && JsonSerializer.Deserialize<Dictionary<string, int>>(existing.AnswersJson)!.OrderBy(x => x.Key).SequenceEqual(request.Answers.OrderBy(x => x.Key)),
                 "Ідентифікатор спроби вже використано.", 409);
-            return Result(questions, request.Answers, existing.Score);
+            return Result(questions, request.Answers, existing.Score, key);
         }
         var status = await learning.Status(e, content);
         Require(key != "final" || status.FinalUnlocked, "Спочатку завершіть усі модулі.", 409);
         var attempts = status.Attempts.Where(a => a.AssessmentKey == key).ToArray();
-        Require(attempts.All(a => a.Score < (key == "final" ? LearningRules.FinalPass : LearningRules.ModulePass)), "Тест уже складено. Результат збережено.", 409);
-        Require(attempts.Count(a => a.SubmittedAt > DateTime.UtcNow.AddDays(-1)) < (key == "final" ? 5 : 10), "Ліміт спроб за 24 години вичерпано.", 429);
-        Require(attempts.All(a => a.SubmittedAt <= DateTime.UtcNow.AddSeconds(-60)), "Перед наступною спробою зачекайте 60 секунд і перегляньте матеріал.", 429);
+        Require(attempts.All(a => a.Score < LearningRules.PassScore(key)), "Тест уже складено. Результат збережено.", 409);
+        Require(attempts.Count(a => a.SubmittedAt > DateTime.UtcNow.AddDays(-1)) < LearningRules.DailyAttempts(key), "Ліміт спроб за 24 години вичерпано.", 429);
+        Require(attempts.All(a => a.SubmittedAt <= DateTime.UtcNow.AddSeconds(-LearningRules.QuizCooldownSeconds)),
+            $"Перед наступною спробою зачекайте {LearningRules.QuizCooldownSeconds} секунд і перегляньте матеріал.", 429);
         db.QuizAttempts.Add(new QuizAttempt { Id = request.RequestId, EnrollmentId = e.Id, AssessmentKey = key, AnswersJson = answers, Score = score });
         await db.SaveChangesAsync();
         await tx.CommitAsync();
-        return Result(questions, request.Answers, score);
+        return Result(questions, request.Answers, score, key);
     }
 
     [HttpPost("modules/{key}/submissions")]
@@ -146,9 +149,18 @@ public sealed class LearningController(AppDbContext db, LearningService learning
 
     private static Question[] Questions(Curriculum content, string key) => key == "final" ? content.FinalQuestions
         : content.Modules.SingleOrDefault(m => m.Key == key)?.Questions ?? throw Missing();
-    private static object Result(Question[] questions, Dictionary<string, int> answers, int score) => new
+    // Correct options and explanations are revealed only after a passing attempt. Returning them after a
+    // failed attempt would let the next attempt copy the key and make the pass threshold meaningless.
+    private static object Result(Question[] questions, Dictionary<string, int> answers, int score, string key)
     {
-        score,
-        feedback = questions.Select(q => new { q.Id, q.Text, selected = answers[q.Id], correct = q.Correct, q.Options, q.Explanation })
-    };
+        var passed = score >= LearningRules.PassScore(key);
+        return new
+        {
+            score,
+            passed,
+            feedback = passed
+                ? questions.Select(q => new { q.Id, q.Text, selected = answers[q.Id], correct = q.Correct, q.Options, q.Explanation }).ToArray()
+                : []
+        };
+    }
 }
