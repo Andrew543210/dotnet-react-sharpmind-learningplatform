@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Copy, Printer } from 'lucide-react'
+import { useAuth } from '../auth/AuthContext'
 import { useApi } from '../../shared/hooks'
 import { date } from '../../shared/types'
 import { ErrorState, Loading, Notice } from '../../shared/ui'
@@ -15,6 +16,7 @@ export function CertificatePage() {
     finalScore: number
     issuedAt: string
   }>(`/certificates/${id}`)
+  const { user } = useAuth()
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
   if (query.loading) return <Loading />
@@ -23,9 +25,13 @@ export function CertificatePage() {
   const c = query.data
   return (
     <div className="page certificate-page">
-      <Link to="/my-learning" className="back-link no-print">
+      {/* The page is public for verification, so the way back depends on who is reading it. */}
+      <Link
+        to={!user ? '/' : user.role === 'Student' ? '/my-learning' : '/studio'}
+        className="back-link no-print"
+      >
         <ArrowLeft size={16} />
-        Моє навчання
+        {!user ? 'До каталогу' : user.role === 'Student' ? 'Моє навчання' : 'До майстерні'}
       </Link>
       <div className="certificate">
         <div className="certificate-brand">
@@ -38,7 +44,7 @@ export function CertificatePage() {
         <p>успішно завершив(ла) навчання за програмою</p>
         <h2>{c.courseTitle}</h2>
         <div className="certificate-divider" />
-        <p>Усі уроки завершено · модульні тести ≥70% · практичні роботи ≥60%</p>
+        <p>Усі уроки завершено · модульні тести ≥70% · практичні роботи від 60 зі 100 балів</p>
         <p className="certificate-score">
           Фінальний іспит: <strong>{c.finalScore}%</strong>
         </p>
