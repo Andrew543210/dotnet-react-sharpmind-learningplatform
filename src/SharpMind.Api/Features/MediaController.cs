@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +34,7 @@ public sealed class MediaController(AppDbContext db, IConfiguration config, IHos
         Require(Curriculum.FromJson(course.CurriculumJson).Modules.Any(m => m.Key == key), "Спочатку збережіть модуль.", 409);
         Require(await db.CourseMedia.CountAsync(x => x.CourseId == courseId) < 100, "До курсу можна додати до 100 медіафайлів.");
         await using var input = file.OpenReadStream();
-        var header = new byte[16];
+        var header = new byte[64];
         var count = await input.ReadAtLeastAsync(header, 12, false, HttpContext.RequestAborted);
         var mime = MediaType(header.AsSpan(0, count));
         Require(mime is not null, "Дозволено лише PNG, JPEG, WebP, MP4 та WebM із відповідною сигнатурою файла.");
@@ -88,8 +90,16 @@ public sealed class MediaController(AppDbContext db, IConfiguration config, IHos
         if (header.Length >= 8 && header[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) return "image/png";
         if (header.Length >= 3 && header[0] == 255 && header[1] == 216 && header[2] == 255) return "image/jpeg";
         if (header.Length >= 12 && header[..4].SequenceEqual("RIFF"u8) && header.Slice(8, 4).SequenceEqual("WEBP"u8)) return "image/webp";
-        if (header.Length >= 12 && header.Slice(4, 4).SequenceEqual("ftyp"u8)) return "video/mp4";
-        if (header.Length >= 4 && header[..4].SequenceEqual(new byte[] { 26, 69, 223, 163 })) return "video/webm";
+        // ISO BMFF also carries HEIC/AVIF images and QuickTime files, so only MP4 major brands are accepted.
+        if (header.Length >= 16 && header.Slice(4, 4).SequenceEqual("ftyp"u8))
+        {
+            var size = BinaryPrimitives.ReadUInt32BigEndian(header);
+            return size >= 16 && size % 4 == 0 && Mp4Brands.Contains(Encoding.ASCII.GetString(header.Slice(8, 4))) ? "video/mp4" : null;
+        }
+        // Matroska shares the EBML magic number; WebM declares the "webm" DocType in the EBML header.
+        if (header.Length >= 4 && header[..4].SequenceEqual(new byte[] { 26, 69, 223, 163 }) && header.IndexOf("webm"u8) > 4) return "video/webm";
         return null;
     }
+
+    private static readonly string[] Mp4Brands = ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "M4V ", "dash"];
 }

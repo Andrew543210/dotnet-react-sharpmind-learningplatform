@@ -42,8 +42,13 @@ public sealed class MediaTests : IClassFixture<ApiFixture>
     {
         using var mentor = await f.Login("foreignmentor");
         byte[] header = [0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0];
+        const string transcript = "This is a test-only MP4 signature, not a playable educational video. It verifies the upload contract.";
+        byte[] heic = [0, 0, 0, 24, 102, 116, 121, 112, 104, 101, 105, 99, 0, 0, 0, 0];
+        byte[] matroska = [26, 69, 223, 163, 159, 66, 134, 129, 1, 66, 130, 136, 109, 97, 116, 114, 111, 115, 107, 97];
+        Assert.Equal(HttpStatusCode.BadRequest, (await Upload(mentor, f.OtherCourseId, heic, "photo.mp4", transcript)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Upload(mentor, f.OtherCourseId, matroska, "lesson.webm", transcript)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Upload(mentor, f.OtherCourseId, header, "lesson.mp4")).StatusCode);
-        var result = await Upload(mentor, f.OtherCourseId, header, "lesson.mp4", "This is a test-only MP4 signature, not a playable educational video. It verifies the upload contract."); result.EnsureSuccessStatusCode();
+        var result = await Upload(mentor, f.OtherCourseId, header, "lesson.mp4", transcript); result.EnsureSuccessStatusCode();
         var id = (await result.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         (await f.Send(mentor, $"/api/media/{id}", method: HttpMethod.Delete)).EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.NotFound, (await mentor.GetAsync($"/api/media/{id}")).StatusCode);
