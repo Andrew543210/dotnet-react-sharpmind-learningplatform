@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api } from '../../shared/api'
+import { api, sessionExpiredEvent } from '../../shared/api'
 import type { User } from '../../shared/types'
 import { AuthContext } from './AuthContext'
 
@@ -24,6 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     return () => controller.abort()
   }, [revision])
+  // Any API 401 means the cookie expired or was revoked; protected pages then offer a fresh login.
+  useEffect(() => {
+    const expire = () => setUser(null)
+    window.addEventListener(sessionExpiredEvent, expire)
+    return () => window.removeEventListener(sessionExpiredEvent, expire)
+  }, [])
   return (
     <AuthContext.Provider
       value={{

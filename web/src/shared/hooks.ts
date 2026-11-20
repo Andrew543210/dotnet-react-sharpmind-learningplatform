@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBeforeUnload, useBlocker } from 'react-router-dom'
-import { api, message } from './api'
+import { api, message, statusOf } from './api'
 
 export function useApi<T>(path: string) {
   const [result, setResult] = useState<{
@@ -8,6 +8,7 @@ export function useApi<T>(path: string) {
     revision: number
     data: T | null
     error: string
+    status: number
   } | null>(null)
   const [revision, setRevision] = useState(0)
   const refresh = useCallback(() => setRevision((value) => value + 1), [])
@@ -16,11 +17,11 @@ export function useApi<T>(path: string) {
     api
       .get<T>(path, controller.signal)
       .then((data) => {
-        if (!controller.signal.aborted) setResult({ path, revision, data, error: '' })
+        if (!controller.signal.aborted) setResult({ path, revision, data, error: '', status: 200 })
       })
       .catch((error) => {
         if (!controller.signal.aborted)
-          setResult({ path, revision, data: null, error: message(error) })
+          setResult({ path, revision, data: null, error: message(error), status: statusOf(error) })
       })
     return () => controller.abort()
   }, [path, revision])
@@ -29,6 +30,7 @@ export function useApi<T>(path: string) {
   return {
     data: samePath ? result.data : null,
     error: current ? result.error : '',
+    status: current ? result.status : 0,
     loading: !samePath || (!current && result.data === null),
     refreshing: samePath && !current,
     refresh,

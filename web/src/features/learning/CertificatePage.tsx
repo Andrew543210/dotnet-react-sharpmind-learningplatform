@@ -18,7 +18,8 @@ export function CertificatePage() {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
   if (query.loading) return <Loading />
-  if (query.error || !query.data) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error || !query.data)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   const c = query.data
   return (
     <div className="page certificate-page">

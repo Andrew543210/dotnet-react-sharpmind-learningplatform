@@ -17,7 +17,8 @@ export function DashboardPage() {
     }[]
   >('/courses/mine')
   if (query.loading) return <Loading />
-  if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   const rows = query.data ?? []
   const active = rows.filter((x) => x.enrollmentStatus === 'Approved' && !x.status?.certificateId)
   const completed = rows.filter((x) => x.status?.certificateId)

@@ -39,7 +39,7 @@ export function SupportPage() {
           {query.loading ? (
             <Loading />
           ) : query.error ? (
-            <ErrorState error={query.error} retry={query.refresh} />
+            <ErrorState error={query.error} status={query.status} retry={query.refresh} />
           ) : !query.data?.items.length ? (
             <Empty title="Поки що без звернень">
               <p>Якщо потрібна допомога, напишіть нам.</p>

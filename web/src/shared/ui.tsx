@@ -12,22 +12,52 @@ export function Loading() {
     </div>
   )
 }
-export function ErrorState({ error, retry }: { error: string; retry?: () => void }) {
+export function ErrorState({
+  error,
+  retry,
+  status = 0,
+}: {
+  error: string
+  retry?: () => void
+  status?: number
+}) {
+  const location = useLocation()
+  // 401/403/404 are not fixed by retrying, so they get a destination instead of a retry button.
+  const known = status === 401 || status === 403 || status === 404
   return (
     <div className="state error-state" role="alert">
       <AlertCircle size={28} />
-      <h2>Не вдалося відкрити дані</h2>
+      <h2>
+        {status === 401
+          ? 'Потрібно увійти'
+          : status === 403
+            ? 'Немає доступу'
+            : status === 404
+              ? 'Сторінку не знайдено або доступ закрито'
+              : 'Не вдалося відкрити дані'}
+      </h2>
       <p>{error}</p>
       <div className="actions">
-        {retry && (
+        {retry && !known && (
           <button className="button secondary" onClick={retry}>
             <RotateCw size={16} />
             Повторити
           </button>
         )}
-        <Link to="/login" className="text-link">
-          Перейти до входу
-        </Link>
+        {status === 401 ? (
+          <Link
+            to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
+            className="button"
+          >
+            Увійти
+          </Link>
+        ) : (
+          known && (
+            <Link to="/" className="text-link">
+              До каталогу
+            </Link>
+          )
+        )}
       </div>
     </div>
   )

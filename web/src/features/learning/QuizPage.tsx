@@ -32,7 +32,7 @@ export function QuizPage() {
   const query = useApi<Quiz>(`/learning/${id}/quizzes/${key}`)
   if (query.loading) return <Loading />
   if (query.error || !query.data)
-    return <ErrorState error={query.error} retry={query.refresh} />
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   return <QuizForm key={`${id}-${key}`} quiz={query.data} courseId={id!} refresh={query.refresh} />
 }
 function QuizForm({

@@ -5,8 +5,14 @@ export class ApiError extends Error {
     this.status = status
   }
 }
+// Wrong credentials on these endpoints are also 401, but they do not mean an existing session expired.
+const credentialPaths = new Set(['/auth/login', '/auth/register'])
+export const sessionExpiredEvent = 'sharpmind:session-expired'
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, { credentials: 'same-origin', ...options })
+  if (response.status === 401 && !credentialPaths.has(path))
+    window.dispatchEvent(new Event(sessionExpiredEvent))
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as {
       title?: string
@@ -41,5 +47,6 @@ export const api = {
     return request<T>(path, { method: 'POST', headers: { 'X-CSRF-TOKEN': token }, body: form })
   },
 }
+export const statusOf = (error: unknown) => (error instanceof ApiError ? error.status : 0)
 export const message = (error: unknown) =>
   error instanceof Error ? error.message : 'Не вдалося виконати дію.'

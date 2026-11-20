@@ -30,7 +30,7 @@ export function MediaManager({
       {query.loading ? (
         <Loading />
       ) : query.error ? (
-        <ErrorState error={query.error} retry={query.refresh} />
+        <ErrorState error={query.error} status={query.status} retry={query.refresh} />
       ) : (
         <div>
           {query.data?.map((m) => (

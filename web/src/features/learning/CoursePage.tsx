@@ -15,7 +15,7 @@ export function CoursePage() {
   const action = useAction()
   const navigate = useNavigate()
   if (query.loading) return <Loading />
-  if (query.error || !query.data) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error || !query.data) return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   const { course, outcomes, prerequisites, modules, enrollment, status } = query.data
   const approved = enrollment?.status === 'Approved'
   return (

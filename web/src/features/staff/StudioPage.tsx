@@ -75,7 +75,8 @@ export function StudioPage() {
 function StaffCourses() {
   const query = useApi<StaffCourse[]>('/staff/courses')
   if (query.loading) return <Loading />
-  if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   if (!query.data?.length)
     return (
       <Empty title="Майстерня починається з програми">
@@ -122,7 +123,8 @@ function EnrollmentList() {
     `/staff/enrollments?page=${page}&all=${all}`,
   )
   if (query.loading) return <Loading />
-  if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   const rows = query.data?.items ?? []
   return (
     <>
@@ -221,7 +223,8 @@ function ReviewList() {
     `/staff/submissions?page=${page}&all=${all}`,
   )
   if (query.loading) return <Loading />
-  if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   const rows = query.data?.items ?? []
   return (
     <>

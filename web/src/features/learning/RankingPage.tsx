@@ -8,7 +8,8 @@ export function RankingPage() {
     `/courses/${id}/ranking`,
   )
   if (query.loading) return <Loading />
-  if (query.error) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   return (
     <div className="page narrow">
       <Link className="back-link" to={`/courses/${id}`}>

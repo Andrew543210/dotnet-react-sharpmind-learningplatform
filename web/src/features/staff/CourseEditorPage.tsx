@@ -52,7 +52,8 @@ export function CourseEditorPage() {
 function ExistingEditor({ id }: { id: string }) {
   const query = useApi<Editable>(`/staff/courses/${id}`)
   if (query.loading) return <Loading />
-  if (query.error || !query.data) return <ErrorState error={query.error} retry={query.refresh} />
+  if (query.error || !query.data)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
   return <Editor key={`${id}-${query.data.version}`} initial={query.data} refresh={query.refresh} />
 }
 function Editor({ initial, refresh }: { initial: Editable; refresh?: () => void }) {
@@ -510,7 +511,7 @@ function AssignmentForm({ course, refresh }: { course: Editable; refresh: () => 
       {query.loading ? (
         <Loading />
       ) : query.error ? (
-        <ErrorState error={query.error} retry={query.refresh} />
+        <ErrorState error={query.error} status={query.status} retry={query.refresh} />
       ) : (
         <>
           <label>

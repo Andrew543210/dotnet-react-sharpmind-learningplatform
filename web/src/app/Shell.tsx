@@ -12,7 +12,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthContext'
-import { api } from '../shared/api'
+import { api, statusOf } from '../shared/api'
 import { useAction, useUnsavedNavigation } from '../shared/hooks'
 import { Loading, Notice } from '../shared/ui'
 
@@ -26,7 +26,10 @@ export function Shell() {
     const safe = window.dispatchEvent(new Event('sharpmind:check-unsaved', { cancelable: true }))
     if (!safe && !window.confirm('Є незбережені зміни. Вийти й видалити локальні чернетки?')) return
     return action.run(async () => {
-      await api.send('/auth/logout')
+      // An already expired session is still a successful logout for the user.
+      await api.send('/auth/logout').catch((error: unknown) => {
+        if (statusOf(error) !== 401) throw error
+      })
       sessionStorage.clear()
       setUser(null)
     })
