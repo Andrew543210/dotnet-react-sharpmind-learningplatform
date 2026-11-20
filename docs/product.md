@@ -12,10 +12,10 @@ The original supports ten IT subject areas, catalog filters, student enrollment 
 
 1. Discover a course through topic, level and search; inspect its outcomes and syllabus without signing in.
 2. Register as a student and request a place. A mentor approves or rejects with a reason; a rejected student can request again.
-3. Read self-contained lessons, mark them complete, take ten-question quizzes, submit text/code and receive rubric-based feedback. Best quiz results and all attempts are retained.
+3. Read self-contained lessons, mark them complete, take ten-question quizzes, submit text/code and receive rubric-based feedback. A passing attempt unlocks the answer review with explanations; a failed one shows the score and sends the learner back to the lesson. Best quiz results and all attempts are retained.
 4. Complete every lesson, score at least 70% on each module quiz and 60% on each practical. This unlocks a ten-question final exam, requiring 80%.
 5. Receive a unique, verifiable, printable certificate. Repeated issuance returns the same certificate. Course rankings use pseudonymous identifiers, without exposing student email addresses.
-6. Mentors manage their courses, requests and grading queue. Administrators manage roles, availability, course assignments and support. In-use curricula are locked to protect existing work; create a new course for a changed syllabus.
+6. Mentors manage their courses, requests and grading queue. Administrators manage roles, availability, course assignments and support. In-use curricula are locked to protect existing work; create a new course for a changed syllabus. Archiving a course closes it to new students and rejects pending requests with a stated reason.
 
 The ten original subject areas remain, with focused, honestly scoped short courses. Course content is first-party Ukrainian teaching material, not copied external articles. Each module includes worked examples, self-checks, a practical brief, explicit rubric and a ten-question quiz. Official documentation is linked as further reading. No course advertises job readiness or an accredited qualification.
 
