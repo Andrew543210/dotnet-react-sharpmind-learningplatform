@@ -88,7 +88,7 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
-if (args.Any(x => x.StartsWith("--migrate", StringComparison.Ordinal) || x.StartsWith("--seed-", StringComparison.Ordinal) || x == "--bootstrap-admin"))
+if (DatabaseSetup.IsRequested(args))
 {
     await DatabaseSetup.Run(app.Services, app.Configuration, app.Environment, args);
     return;

@@ -7,8 +7,18 @@ namespace SharpMind.Api.Infrastructure;
 
 public static class DatabaseSetup
 {
+    private static readonly string[] Commands = ["--migrate", "--seed-demo", "--seed-content", "--bootstrap-admin"];
+
+    // Anything that looks like a setup option runs setup mode, so a typo fails loudly instead of starting the web server
+    // or silently doing nothing.
+    public static bool IsRequested(string[] args) => args.Any(x => x.StartsWith("--migrate", StringComparison.Ordinal)
+        || x.StartsWith("--seed", StringComparison.Ordinal) || x.StartsWith("--bootstrap", StringComparison.Ordinal));
+
     public static async Task Run(IServiceProvider services, IConfiguration config, IHostEnvironment environment, string[] args)
     {
+        var unknown = args.Where(x => IsRequested([x]) && !Commands.Contains(x)).ToArray();
+        if (unknown.Length > 0)
+            throw new InvalidOperationException($"Unknown setup option {string.Join(", ", unknown)}. Use {string.Join(", ", Commands)}.");
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -18,8 +28,11 @@ public static class DatabaseSetup
             var email = config["Bootstrap:Email"] ?? throw new InvalidOperationException("Set Bootstrap__Email.");
             var password = config["Bootstrap:Password"] ?? throw new InvalidOperationException("Set Bootstrap__Password.");
             var name = config["Bootstrap:FullName"] ?? "Адміністратор";
+            if (await users.FindByEmailAsync(email) is not null)
+                throw new InvalidOperationException("An account with Bootstrap__Email already exists. Bootstrap does not modify existing users; choose another email.");
             if (await db.Users.AnyAsync(u => u.Role == "Admin")) throw new InvalidOperationException("An administrator already exists. Bootstrap does not modify existing users.");
             await CreateUser(users, email, name, "Admin", password);
+            Console.WriteLine("Administrator account created.");
         }
         if (args.Contains("--seed-demo"))
         {
