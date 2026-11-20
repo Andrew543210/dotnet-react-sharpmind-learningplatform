@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Plus } from 'lucide-react'
 import { api } from '../../shared/api'
-import { useAction, useApi, useUnsaved, canDiscardChanges } from '../../shared/hooks'
+import { useAction, useApi, useListParams, useUnsaved } from '../../shared/hooks'
 import type { Submission } from '../../shared/types'
 import { date, statuses } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
@@ -45,18 +45,21 @@ export function StudioPage() {
       <div className="tabs">
         <button
           className={tab === 'courses' ? 'active' : ''}
+          aria-pressed={tab === 'courses'}
           onClick={() => setParams({ tab: 'courses' })}
         >
           Курси та статистика
         </button>
         <button
           className={tab === 'enrollments' ? 'active' : ''}
+          aria-pressed={tab === 'enrollments'}
           onClick={() => setParams({ tab: 'enrollments' })}
         >
           Заявки студентів
         </button>
         <button
           className={tab === 'submissions' ? 'active' : ''}
+          aria-pressed={tab === 'submissions'}
           onClick={() => setParams({ tab: 'submissions' })}
         >
           Перевірка практик
@@ -117,8 +120,8 @@ function StaffCourses() {
   )
 }
 function EnrollmentList() {
-  const [all, setAll] = useState(false)
-  const [page, setPage] = useState(1)
+  const { params, page, update, setPage } = useListParams()
+  const all = params.get('all') === 'true'
   const query = useApi<{ items: Enrollment[]; total: number }>(
     `/staff/enrollments?page=${page}&all=${all}`,
   )
@@ -132,11 +135,7 @@ function EnrollmentList() {
         <input
           type="checkbox"
           checked={all}
-          onChange={(e) => {
-            if (!canDiscardChanges()) return
-            setAll(e.target.checked)
-            setPage(1)
-          }}
+          onChange={(e) => update({ all: e.target.checked ? 'true' : null })}
         />
         Показати також розглянуті заявки
       </label>
@@ -217,8 +216,8 @@ function DecisionForm({ enrollment: e, refresh }: { enrollment: Enrollment; refr
   )
 }
 function ReviewList() {
-  const [all, setAll] = useState(false)
-  const [page, setPage] = useState(1)
+  const { params, page, update, setPage } = useListParams()
+  const all = params.get('all') === 'true'
   const query = useApi<{ items: Review[]; total: number }>(
     `/staff/submissions?page=${page}&all=${all}`,
   )
@@ -232,11 +231,7 @@ function ReviewList() {
         <input
           type="checkbox"
           checked={all}
-          onChange={(e) => {
-            if (!canDiscardChanges()) return
-            setAll(e.target.checked)
-            setPage(1)
-          }}
+          onChange={(e) => update({ all: e.target.checked ? 'true' : null })}
         />
         Показати також перевірені роботи
       </label>

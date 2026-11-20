@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../../shared/api'
-import { useAction, useApi, useUnsaved, canDiscardChanges } from '../../shared/hooks'
+import { useAction, useApi, useListParams, useUnsaved } from '../../shared/hooks'
 import { Pagination } from '../../shared/Pagination'
 import type { Role, User } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
 
 type Account = User & { isDisabled: boolean }
 export function AdminPage() {
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const { params, page, update, setPage } = useListParams()
+  const search = params.get('search') ?? ''
   const query = useApi<{ total: number; items: Account[] }>(
     `/admin/users?search=${encodeURIComponent(search)}&page=${page}`,
   )
@@ -25,13 +25,13 @@ export function AdminPage() {
         className="search"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!canDiscardChanges()) return
-          setSearch(String(new FormData(e.currentTarget).get('search') ?? ''))
-          setPage(1)
+          update({ search: String(new FormData(e.currentTarget).get('search') ?? '').trim() })
         }}
       >
         <input
+          key={search}
           name="search"
+          defaultValue={search}
           aria-label="Знайти користувача"
           maxLength={100}
           placeholder="Ім’я або пошта"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useBeforeUnload, useBlocker } from 'react-router-dom'
+import { useBeforeUnload, useBlocker, useSearchParams } from 'react-router-dom'
 import { api, message, statusOf } from './api'
 
 export function useApi<T>(path: string) {
@@ -79,10 +79,6 @@ function hasUnsavedChanges() {
   return !window.dispatchEvent(new Event('sharpmind:check-unsaved', { cancelable: true }))
 }
 
-export function canDiscardChanges() {
-  return !hasUnsavedChanges() || window.confirm('Є незбережені зміни. Залишити цю сторінку?')
-}
-
 // A single router blocker protects every registered form on the current page.
 export function useUnsavedNavigation() {
   useBeforeUnload(
@@ -102,6 +98,28 @@ export function useUnsavedNavigation() {
       else blocker.reset()
     }
   }, [blocker])
+}
+
+// List page and filters live in the URL, so Back, reload and shared links keep them. Changing them is a
+// navigation, which the router blocker above guards when a form on the page has unsaved changes.
+export function useListParams() {
+  const [params, setParams] = useSearchParams()
+  const page = Math.max(1, Math.trunc(Number(params.get('page'))) || 1)
+  const update = (changes: Record<string, string | null>) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      for (const [name, value] of Object.entries(changes))
+        if (value) next.set(name, value)
+        else next.delete(name)
+      if (!('page' in changes)) next.delete('page')
+      return next
+    })
+  return {
+    params,
+    page,
+    update,
+    setPage: (value: number) => update({ page: value > 1 ? String(value) : null }),
+  }
 }
 
 export function useDraft(key: string) {

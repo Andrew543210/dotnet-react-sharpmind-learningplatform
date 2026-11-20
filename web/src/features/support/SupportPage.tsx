@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../../shared/api'
-import { useAction, useApi, useDraft, useUnsaved } from '../../shared/hooks'
+import { useAction, useApi, useDraft, useListParams, useUnsaved } from '../../shared/hooks'
 import { date } from '../../shared/types'
 import { Empty, ErrorState, Loading, Notice } from '../../shared/ui'
 import { Pagination } from '../../shared/Pagination'
@@ -17,7 +17,7 @@ type Ticket = {
 }
 export function SupportPage() {
   const { user } = useAuth()
-  const [page, setPage] = useState(1)
+  const { page, setPage } = useListParams()
   const query = useApi<{ items: Ticket[]; total: number }>(`/support?page=${page}`)
   const [body, setBody] = useDraft(`support:${user!.id}`)
   const [subject, setSubject] = useState('')
