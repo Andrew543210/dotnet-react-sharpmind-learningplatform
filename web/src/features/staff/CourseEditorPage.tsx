@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react'
 import { api } from '../../shared/api'
 import { useAction, useApi, useUnsaved } from '../../shared/hooks'
@@ -50,13 +50,37 @@ export function CourseEditorPage() {
   return id === 'new' ? <Editor initial={empty} /> : <ExistingEditor id={id!} />
 }
 function ExistingEditor({ id }: { id: string }) {
+  const location = useLocation()
   const query = useApi<Editable>(`/staff/courses/${id}`)
+  // The editor remounts with every saved version, so the confirmation lives here (or arrives with the
+  // navigation that created the course) instead of inside the editor's own action state.
+  const [notice, setNotice] = useState(
+    () => (location.state as { notice?: string } | null)?.notice ?? '',
+  )
   if (query.loading) return <Loading />
   if (query.error || !query.data)
     return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
-  return <Editor key={`${id}-${query.data.version}`} initial={query.data} refresh={query.refresh} />
+  return (
+    <Editor
+      key={`${id}-${query.data.version}`}
+      initial={query.data}
+      notice={notice}
+      refresh={(message = '') => {
+        setNotice(message)
+        query.refresh()
+      }}
+    />
+  )
 }
-function Editor({ initial, refresh }: { initial: Editable; refresh?: () => void }) {
+function Editor({
+  initial,
+  notice = '',
+  refresh,
+}: {
+  initial: Editable
+  notice?: string
+  refresh?: (notice?: string) => void
+}) {
   const [course, setCourse] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
   const [preview, setPreview] = useState(false)
@@ -95,22 +119,34 @@ function Editor({ initial, refresh }: { initial: Editable; refresh?: () => void 
                 : 'Чернетка'}
         </span>
       </div>
-      <Notice error={action.error} success={action.success} />
+      <Notice error={action.error} success={action.success || (dirty ? '' : notice)} />
       <form
         onSubmit={(e) => {
           e.preventDefault()
+          // Empty lines in the outcomes field are editing artefacts, not learning outcomes.
+          const payload = {
+            ...course,
+            content: {
+              ...course.content,
+              outcomes: course.content.outcomes.map((x) => x.trim()).filter(Boolean),
+            },
+          }
           action.run(async () => {
             if (initial.id) {
-              await api.send(`/staff/courses/${initial.id}`, course, 'PUT')
-              setSaved(JSON.stringify(course))
-              refresh?.()
+              await api.send(`/staff/courses/${initial.id}`, payload, 'PUT')
+              setCourse(payload)
+              setSaved(JSON.stringify(payload))
+              refresh?.('Зміни збережено.')
             } else {
-              const created = await api.send<{ id: number }>('/staff/courses', course)
+              const created = await api.send<{ id: number }>('/staff/courses', payload)
               setSaved(JSON.stringify(course))
               allowNavigation()
-              navigate(`/studio/courses/${created.id}`, { replace: true })
+              navigate(`/studio/courses/${created.id}`, {
+                replace: true,
+                state: { notice: 'Чернетку курсу створено. Додайте модулі й тести.' },
+              })
             }
-          }, 'Чернетку збережено.')
+          })
         }}
       >
         <fieldset disabled={action.pending}>
@@ -358,15 +394,14 @@ function Editor({ initial, refresh }: { initial: Editable; refresh?: () => void 
               className="button"
               disabled={action.pending || dirty || initial.isArchived}
               onClick={() =>
-                action.run(
-                  async () => {
-                    await api.send(
-                      `/staff/courses/${initial.id}/publish?version=${initial.version}&published=${!initial.isPublished}`,
-                    )
-                    refresh?.()
-                  },
-                  initial.isPublished ? 'Курс приховано з каталогу.' : 'Курс опубліковано.',
-                )
+                action.run(async () => {
+                  await api.send(
+                    `/staff/courses/${initial.id}/publish?version=${initial.version}&published=${!initial.isPublished}`,
+                  )
+                  refresh?.(
+                    initial.isPublished ? 'Курс приховано з каталогу.' : 'Курс опубліковано.',
+                  )
+                })
               }
             >
               {initial.isPublished ? 'Приховати з каталогу' : 'Опублікувати'}
@@ -374,14 +409,25 @@ function Editor({ initial, refresh }: { initial: Editable; refresh?: () => void 
             <button
               className="button secondary"
               disabled={action.pending || dirty}
-              onClick={() =>
+              onClick={() => {
+                if (
+                  !initial.isArchived &&
+                  !window.confirm(
+                    'Архівувати курс? Він зникне з каталогу, а заявки на розгляді буде відхилено. Зараховані студенти збережуть доступ.',
+                  )
+                )
+                  return
                 action.run(async () => {
                   await api.send(
                     `/staff/courses/${initial.id}/archive?version=${initial.version}&archived=${!initial.isArchived}`,
                   )
-                  refresh?.()
+                  refresh?.(
+                    initial.isArchived
+                      ? 'Курс відновлено як прихований. Опублікуйте його, щоб він з’явився в каталозі.'
+                      : 'Курс перенесено в архів.',
+                  )
                 })
-              }
+              }}
             >
               {initial.isArchived ? 'Відновити з архіву' : 'Архівувати'}
             </button>
@@ -485,11 +531,23 @@ function QuestionEditor({
     </div>
   )
 }
-function MentorAssignment({ course, refresh }: { course: Editable; refresh: () => void }) {
+function MentorAssignment({
+  course,
+  refresh,
+}: {
+  course: Editable
+  refresh: (notice?: string) => void
+}) {
   const { user } = useAuth()
   return user?.role === 'Admin' ? <AssignmentForm course={course} refresh={refresh} /> : null
 }
-function AssignmentForm({ course, refresh }: { course: Editable; refresh: () => void }) {
+function AssignmentForm({
+  course,
+  refresh,
+}: {
+  course: Editable
+  refresh: (notice?: string) => void
+}) {
   const query = useApi<{ id: string; fullName: string }[]>('/admin/mentors')
   const action = useAction()
   return (
@@ -503,7 +561,7 @@ function AssignmentForm({ course, refresh }: { course: Editable; refresh: () => 
             mentorId,
             version: course.version,
           })
-          refresh()
+          refresh('Ментора призначено.')
         })
       }}
     >
