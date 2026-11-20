@@ -19,7 +19,7 @@ public sealed class AdminController(AppDbContext db, UserManager<AppUser> users)
         return new
         {
             total = await query.CountAsync(),
-            items = await query.OrderBy(u => u.FullName).Skip((page - 1) * 50).Take(50)
+            items = await query.OrderBy(u => u.FullName).ThenBy(u => u.Id).Skip((page - 1) * 50).Take(50)
             .Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.IsDisabled }).ToListAsync()
         };
     }
@@ -39,7 +39,7 @@ public sealed class AdminController(AppDbContext db, UserManager<AppUser> users)
 
     [HttpGet("mentors")]
     public async Task<object> Mentors() => await db.Users.Where(u => !u.IsDisabled && (u.Role == "Mentor" || u.Role == "Admin"))
-        .Select(u => new { u.Id, u.FullName }).ToListAsync();
+        .OrderBy(u => u.FullName).ThenBy(u => u.Id).Select(u => new { u.Id, u.FullName }).ToListAsync();
 
     [HttpPost("courses/{id:int}/mentor")]
     public async Task<IActionResult> Assign(int id, AssignmentRequest request)

@@ -17,7 +17,7 @@ public sealed class SupportController(AppDbContext db) : ApiController
         return new
         {
             total = await query.CountAsync(),
-            items = await query.OrderByDescending(t => t.CreatedAt).ThenBy(t => t.Id)
+            items = await query.OrderBy(t => t.ResolvedAt != null).ThenByDescending(t => t.CreatedAt).ThenBy(t => t.Id)
             .Skip((page - 1) * 50).Take(50).Select(t => new
             {
                 t.Id,

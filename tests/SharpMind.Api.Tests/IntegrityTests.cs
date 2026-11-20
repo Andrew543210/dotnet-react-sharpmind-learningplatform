@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,27 @@ public sealed class IntegrityTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.Conflict, (await f.Send(student, $"/api/courses/{courseId}/enroll")).StatusCode);
         var pending = await mentor.GetFromJsonAsync<JsonElement>("/api/staff/enrollments");
         Assert.DoesNotContain(pending.GetProperty("items").EnumerateArray(), x => x.GetProperty("courseId").GetInt32() == courseId);
+    }
+
+    [Fact]
+    public async Task UserListPagesAreStableWhenNamesRepeat()
+    {
+        using (var scope = f.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            for (var i = 0; i < 51; i++)
+            {
+                var email = $"twin{i:D2}@test.invalid";
+                Assert.True((await users.CreateAsync(new AppUser { Email = email, UserName = email, FullName = "Pagination Twin", Role = "Student" })).Succeeded);
+            }
+        }
+        using var admin = await f.Login("admin");
+        var first = await admin.GetFromJsonAsync<JsonElement>("/api/admin/users?search=Pagination%20Twin&page=1");
+        var second = await admin.GetFromJsonAsync<JsonElement>("/api/admin/users?search=Pagination%20Twin&page=2");
+        var ids = first.GetProperty("items").EnumerateArray().Concat(second.GetProperty("items").EnumerateArray())
+            .Select(x => x.GetProperty("id").GetString()).ToArray();
+        Assert.Equal(51, first.GetProperty("total").GetInt32());
+        Assert.Equal(51, ids.Distinct().Count());
     }
 
     [Fact]
