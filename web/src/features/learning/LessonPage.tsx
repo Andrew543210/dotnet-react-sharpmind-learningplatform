@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import Markdown from 'react-markdown'
 import { ArrowLeft, ArrowRight, Check, FileCode2 } from 'lucide-react'
 import { api } from '../../shared/api'
 import { useAction, useApi, useDraft } from '../../shared/hooks'
@@ -10,90 +9,70 @@ import { date } from '../../shared/types'
 import { ErrorState, Loading, Notice, Progress } from '../../shared/ui'
 import { MediaGallery } from '../../shared/MediaGallery'
 import type { Media } from '../../shared/MediaGallery'
+import { Prose } from '../../shared/Prose'
+
+type ModulePage = {
+  key: string
+  title: string
+  lesson: string
+  practice: string
+  course: { id: number; title: string }
+  modules: CourseDetail['modules']
+  rules: CourseDetail['rules']
+  status: LearningStatus
+  media: Media[]
+}
 
 export function LessonPage() {
   const { id, key } = useParams()
-  const query = useApi<{
-    key: string
-    title: string
-    lesson: string
-    practice: string
-    status: LearningStatus
-    media: Media[]
-  }>(`/learning/${id}/modules/${key}`)
-  const course = useApi<CourseDetail>(`/courses/${id}`)
-  if (query.loading || course.loading) return <Loading />
-  if (query.error || course.error || !query.data || !course.data)
-    return (
-      <ErrorState
-        error={query.error || course.error}
-        retry={() => {
-          query.refresh()
-          course.refresh()
-        }}
-      />
-    )
-  return (
-    <LessonContent
-      key={`${id}-${key}`}
-      lesson={query.data}
-      course={course.data}
-      refresh={query.refresh}
-    />
-  )
+  const query = useApi<ModulePage>(`/learning/${id}/modules/${key}`)
+  if (query.loading) return <Loading />
+  if (query.error || !query.data)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
+  return <LessonContent key={`${id}-${key}`} lesson={query.data} refresh={query.refresh} />
 }
-function LessonContent({
-  lesson,
-  course,
-  refresh,
-}: {
-  lesson: {
-    key: string
-    title: string
-    lesson: string
-    practice: string
-    status: LearningStatus
-    media: Media[]
-  }
-  course: CourseDetail
-  refresh: () => void
-}) {
+function LessonContent({ lesson, refresh }: { lesson: ModulePage; refresh: () => void }) {
   const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'lesson'
   const setTab = (value: string) => setParams({ tab: value }, { replace: true })
-  const [answer, setAnswer] = useDraft(`practice:${user!.id}:${course.course.id}:${lesson.key}`)
+  const { course, modules, rules } = lesson
+  const [answer, setAnswer] = useDraft(`practice:${user!.id}:${course.id}:${lesson.key}`)
   const [requestId, setRequestId] = useState(crypto.randomUUID())
   const action = useAction()
   const state = lesson.status.modules.find((x) => x.key === lesson.key)!
   const history = lesson.status.submissions.filter((s) => s.moduleKey === lesson.key)
   const latest = history[0]
-  const canSubmit = !latest || (latest.grade !== null && latest.grade < 60)
-  const next = course.modules[course.modules.findIndex((m) => m.key === lesson.key) + 1]
+  const canSubmit = !latest || (latest.grade !== null && latest.grade < rules.practicePass)
+  const index = modules.findIndex((m) => m.key === lesson.key)
+  const next = modules[index + 1]
   return (
     <div className="page lesson-page">
-      <Link className="back-link" to={`/courses/${course.course.id}`}>
+      <Link className="back-link" to={`/courses/${course.id}`}>
         <ArrowLeft size={16} />
-        {course.course.title}
+        {course.title}
       </Link>
       <div className="lesson-layout">
         <aside className="lesson-outline">
           <p className="eyebrow">ВАШ МАРШРУТ</p>
           <Progress value={lesson.status.progress} />
           <nav aria-label="Модулі курсу">
-            {course.modules.map((m, i) => (
+            {modules.map((m, i) => (
               <Link
                 key={m.key}
                 className={m.key === lesson.key ? 'current' : ''}
-                to={`/learn/${course.course.id}/${m.key}`}
+                to={`/learn/${course.id}/${m.key}`}
               >
                 <span>{String(i + 1).padStart(2, '0')}</span>
                 {m.title}
               </Link>
             ))}
           </nav>
-          <p className="muted">Тести ≥70% · практика ≥60% · фінальний іспит ≥80%</p>
-          <Link className="text-link" to={`/courses/${course.course.id}`}>
+          <p className="muted">
+            Тести ≥{rules.modulePass}% · практика ≥{rules.practicePass}/100 · фінальний іспит ≥
+            {rules.finalPass}%
+          </p>
+          <Link className="text-link" to={`/courses/${course.id}`}>
             Загальний прогрес
             <ArrowRight size={15} />
           </Link>
@@ -101,23 +80,27 @@ function LessonContent({
         <article className="lesson-content">
           <div className="lesson-top">
             <span className="eyebrow">
-              МОДУЛЬ {course.modules.findIndex((m) => m.key === lesson.key) + 1} /{' '}
-              {course.modules.length}
+              МОДУЛЬ {index + 1} / {modules.length}
             </span>
             <span className="muted">{state.read ? 'Урок прочитано ✓' : 'У вашому темпі'}</span>
           </div>
           <h1>{lesson.title}</h1>
           <div className="tabs" aria-label="Вміст модуля">
-            <button className={tab === 'lesson' ? 'active' : ''} onClick={() => setTab('lesson')}>
+            <button
+              className={tab === 'lesson' ? 'active' : ''}
+              aria-pressed={tab === 'lesson'}
+              onClick={() => setTab('lesson')}
+            >
               Матеріал
             </button>
             <button
               className={tab === 'practice' ? 'active' : ''}
+              aria-pressed={tab === 'practice'}
               onClick={() => setTab('practice')}
             >
               Практична робота
             </button>
-            <Link to={`/quiz/${course.course.id}/${lesson.key}`}>
+            <Link to={`/quiz/${course.id}/${lesson.key}`}>
               Тест · {state.quizScore}%<ArrowRight size={14} />
             </Link>
           </div>
@@ -125,7 +108,7 @@ function LessonContent({
           {tab === 'lesson' ? (
             <>
               <div className="prose">
-                <Markdown>{lesson.lesson}</Markdown>
+                <Prose>{lesson.lesson}</Prose>
                 <MediaGallery items={lesson.media} />
               </div>
               <div className="lesson-complete">
@@ -138,7 +121,7 @@ function LessonContent({
                   disabled={state.read || action.pending}
                   onClick={() =>
                     action.run(async () => {
-                      await api.send(`/learning/${course.course.id}/modules/${lesson.key}/complete`)
+                      await api.send(`/learning/${course.id}/modules/${lesson.key}/complete`)
                       refresh()
                     }, 'Урок позначено прочитаним.')
                   }
@@ -148,7 +131,7 @@ function LessonContent({
                 </button>
               </div>
               <div className="actions">
-                <Link className="button secondary" to={`/quiz/${course.course.id}/${lesson.key}`}>
+                <Link className="button secondary" to={`/quiz/${course.id}/${lesson.key}`}>
                   До тесту
                   <ArrowRight size={16} />
                 </Link>
@@ -161,7 +144,7 @@ function LessonContent({
           ) : (
             <>
               <div className="prose">
-                <Markdown>{lesson.practice}</Markdown>
+                <Prose>{lesson.practice}</Prose>
               </div>
               {history.length > 0 && (
                 <section className="submission-history">
@@ -172,7 +155,7 @@ function LessonContent({
                         {date(s.submittedAt)} ·{' '}
                         {s.grade === null
                           ? 'Очікує перевірки'
-                          : `${s.grade}/100 — ${s.grade >= 60 ? 'Зараховано' : 'Потребує доопрацювання'}`}
+                          : `${s.grade}/100 — ${s.grade >= rules.practicePass ? 'Зараховано' : 'Потребує доопрацювання'}`}
                       </summary>
                       <pre className="submitted-answer">{s.answer}</pre>
                       {s.feedback && (
@@ -194,10 +177,10 @@ function LessonContent({
                   onSubmit={(e) => {
                     e.preventDefault()
                     action.run(async () => {
-                      await api.send(
-                        `/learning/${course.course.id}/modules/${lesson.key}/submissions`,
-                        { requestId, answer },
-                      )
+                      await api.send(`/learning/${course.id}/modules/${lesson.key}/submissions`, {
+                        requestId,
+                        answer,
+                      })
                       setAnswer('')
                       setRequestId(crypto.randomUUID())
                       refresh()
@@ -242,7 +225,7 @@ function LessonContent({
             </>
           )}
           {next && (
-            <Link className="next-module" to={`/learn/${course.course.id}/${next.key}`}>
+            <Link className="next-module" to={`/learn/${course.id}/${next.key}`}>
               <span>
                 <small>НАСТУПНИЙ МОДУЛЬ</small>
                 <strong>{next.title}</strong>

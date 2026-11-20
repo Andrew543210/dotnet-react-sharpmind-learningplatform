@@ -5,7 +5,7 @@ import { CourseCover } from '../catalog/CourseCard'
 import { api } from '../../shared/api'
 import { useAction, useApi } from '../../shared/hooks'
 import type { CourseDetail } from '../../shared/types'
-import { duration, levels, statuses, topics } from '../../shared/types'
+import { duration, levels, plural, statuses, topics } from '../../shared/types'
 import { ErrorState, Loading, Notice, Progress } from '../../shared/ui'
 
 export function CoursePage() {
@@ -15,9 +15,18 @@ export function CoursePage() {
   const action = useAction()
   const navigate = useNavigate()
   if (query.loading) return <Loading />
-  if (query.error || !query.data) return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
-  const { course, outcomes, prerequisites, modules, enrollment, status } = query.data
+  if (query.error || !query.data)
+    return <ErrorState error={query.error} status={query.status} retry={query.refresh} />
+  const { course, outcomes, prerequisites, modules, enrollment, status, rules } = query.data
   const approved = enrollment?.status === 'Approved'
+  const moduleDone = (key: string) => {
+    const state = status?.modules.find((x) => x.key === key)
+    return Boolean(
+      state?.read &&
+      state.quizScore >= rules.modulePass &&
+      state.practiceGrade >= rules.practicePass,
+    )
+  }
   return (
     <div className="page">
       <Link to="/" className="back-link">
@@ -37,7 +46,7 @@ export function CoursePage() {
               <Clock3 size={17} />
               {duration(course.minutes)} з практикою
             </span>
-            <span>{modules.length} модулі</span>
+            <span>{plural(modules.length, 'модуль', 'модулі', 'модулів')}</span>
             <span>Ментор: {course.mentorName}</span>
           </div>
           <section className="panel outcomes">
@@ -60,7 +69,7 @@ export function CoursePage() {
             </div>
             {modules.map((m, i) => {
               const state = status?.modules.find((x) => x.key === m.key)
-              const done = state?.read && state.quizScore >= 70 && state.practiceGrade >= 60
+              const done = moduleDone(m.key)
               return (
                 <div className="syllabus-row" key={m.key}>
                   <span className={`module-number ${done ? 'done' : ''}`}>
@@ -74,7 +83,7 @@ export function CoursePage() {
                     {state && (
                       <small>
                         Урок {state.read ? '✓' : '—'} · Тест {state.quizScore}% · Практика{' '}
-                        {state.practiceGrade}%
+                        {state.practiceGrade}/100
                       </small>
                     )}
                   </div>
@@ -96,7 +105,7 @@ export function CoursePage() {
               <span className="module-number">↗</span>
               <div>
                 <h3>Фінальний іспит</h3>
-                <p>10 питань · прохідний результат 80%</p>
+                <p>10 питань · прохідний результат {rules.finalPass}%</p>
               </div>
               {status?.finalUnlocked ? (
                 <Link className="button secondary small" to={`/quiz/${id}/final`}>
@@ -146,7 +155,7 @@ export function CoursePage() {
               <>
                 <Link
                   className="button full"
-                  to={`/learn/${id}/${modules.find((m) => !status?.modules.find((s) => s.key === m.key)?.read)?.key ?? modules[0]?.key}`}
+                  to={`/learn/${id}/${modules.find((m) => !moduleDone(m.key))?.key ?? modules[0]?.key}`}
                 >
                   Продовжити навчання
                   <ArrowRight size={17} />
@@ -209,9 +218,9 @@ export function CoursePage() {
               <h3>Сертифікат — за ваш результат</h3>
               <ul>
                 <li>Прочитайте всі уроки.</li>
-                <li>Складіть кожен модульний тест на 70% або більше.</li>
-                <li>Отримайте від 60% за кожну практику.</li>
-                <li>Складіть фінальний іспит від 80%.</li>
+                <li>Складіть кожен модульний тест на {rules.modulePass}% або більше.</li>
+                <li>Отримайте від {rules.practicePass} зі 100 балів за кожну практику.</li>
+                <li>Складіть фінальний іспит від {rules.finalPass}%.</li>
               </ul>
               <p>Повторні спроби дозволені. Найкращі результати зберігаються.</p>
             </div>

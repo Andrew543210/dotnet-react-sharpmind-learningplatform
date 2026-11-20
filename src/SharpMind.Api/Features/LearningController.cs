@@ -32,6 +32,10 @@ public sealed class LearningController(AppDbContext db, LearningService learning
             m.Minutes,
             m.Lesson,
             m.Practice,
+            // The outline and rules let the lesson page render from one request instead of also loading course details.
+            course = new { e.Course.Id, e.Course.Title },
+            modules = content.Modules.Select(x => new { x.Key, x.Title, x.Minutes }),
+            rules = LearningRules.Public,
             status = await learning.Status(e, content),
             media = await db.CourseMedia.Where(x => x.CourseId == courseId && x.ModuleKey == key).OrderBy(x => x.CreatedAt)
                 .Select(x => new { x.Id, x.Title, x.ContentType, x.Transcript, x.Length }).ToListAsync()

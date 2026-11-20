@@ -47,6 +47,7 @@ public static class LearningRules
     public const int PracticePass = 60;
     public const int FinalPass = 80;
     public const int QuizCooldownSeconds = 60;
+    public static readonly PassRules Public = new(ModulePass, PracticePass, FinalPass);
 
     public static int PassScore(string assessmentKey) => assessmentKey == "final" ? FinalPass : ModulePass;
     public static int DailyAttempts(string assessmentKey) => assessmentKey == "final" ? 5 : 10;
@@ -64,6 +65,7 @@ public static class LearningRules
         + (finalScore >= FinalPass ? 1 : 0)) * 100 / (modules.Length * 3 + 1);
 }
 
+public sealed record PassRules(int ModulePass, int PracticePass, int FinalPass);
 public sealed record ModuleStatus(string Key, bool Read, int QuizScore, int PracticeGrade);
 public sealed class RuleException(int status, string message) : Exception(message)
 {

@@ -1,7 +1,7 @@
 import { ArrowUpRight, Clock3, Layers3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Course } from '../../shared/types'
-import { duration, levels, topics } from '../../shared/types'
+import { duration, levels, plural, topics } from '../../shared/types'
 
 const cover: Record<string, [string, string, string]> = {
   'csharp-collections-async': ['C#', 'var next = await learn();', 'sage'],
@@ -51,7 +51,7 @@ export function CourseCard({ course }: { course: Course }) {
         <div className="course-meta">
           <span>
             <Layers3 size={15} />
-            {course.moduleCount} модулі
+            {plural(course.moduleCount, 'модуль', 'модулі', 'модулів')}
           </span>
           <span>
             <Clock3 size={15} />

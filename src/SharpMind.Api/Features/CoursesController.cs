@@ -42,7 +42,7 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
             modules = content.Modules.Select(m => new { m.Key, m.Title, m.Minutes }),
             enrollment = enrollment is null ? null : new { enrollment.Id, enrollment.Status, enrollment.DecisionReason },
             status = enrollment?.Status == "Approved" ? await learning.Status(enrollment, content) : null,
-            rules = new { modulePass = LearningRules.ModulePass, practicePass = LearningRules.PracticePass, finalPass = LearningRules.FinalPass }
+            rules = LearningRules.Public
         };
     }
 

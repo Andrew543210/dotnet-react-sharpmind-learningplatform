@@ -82,3 +82,9 @@ export const statuses: Record<string, string> = {
 export const date = (value: string) =>
   new Intl.DateTimeFormat('uk-UA', { dateStyle: 'medium' }).format(new Date(value))
 export const duration = (minutes: number) => `${Math.round((minutes / 60) * 10) / 10} год`
+const pluralRules = new Intl.PluralRules('uk-UA')
+// Ukrainian needs three noun forms: 1 модуль, 2 модулі, 5 модулів.
+export const plural = (count: number, one: string, few: string, many: string) => {
+  const rule = pluralRules.select(count)
+  return `${count} ${rule === 'one' ? one : rule === 'few' ? few : many}`
+}
