@@ -53,14 +53,14 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             Assert.True(result.Succeeded); ids[name] = user.Id;
         }
         StudentId = ids["student"]; OtherStudentId = ids["other"];
-        var file = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "src", "SharpMind.Api", "Content", "react-state-forms.json");
         // ContentRootPath is resolved by WebApplicationFactory from the solution.
         var root = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>().ContentRootPath;
-        file = Path.Combine(root, "Content", "react-state-forms.json");
+        var file = Path.Combine(root, "Content", "react-state-forms.json");
         var seed = JsonSerializer.Deserialize<CourseSeed>(await File.ReadAllTextAsync(file), Json)!;
         Content = seed.Content;
-        var course = new Course { Slug = "test-react", Title = seed.Title, Description = seed.Description, MentorId = ids["mentor"], CurriculumJson = Content.ToJson(), IsPublished = true };
-        var other = new Course { Slug = "other-react", Title = "Another course", Description = seed.Description, MentorId = ids["foreignmentor"], CurriculumJson = Content.ToJson(), IsPublished = true };
+        var course = new Course { Slug = "test-react", Title = seed.Title, Description = seed.Description, MentorId = ids["mentor"], IsPublished = true };
+        var other = new Course { Slug = "other-react", Title = "Another course", Description = seed.Description, MentorId = ids["foreignmentor"], IsPublished = true };
+        course.SetCurriculum(Content); other.SetCurriculum(Content);
         db.Courses.AddRange(course, other); await db.SaveChangesAsync(); CourseId = course.Id; OtherCourseId = other.Id;
     }
 

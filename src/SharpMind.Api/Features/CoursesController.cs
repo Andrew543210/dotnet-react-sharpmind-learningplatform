@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,8 +22,8 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
         var total = await query.CountAsync();
         query = sort == "popular" ? query.OrderByDescending(c => db.Enrollments.Count(e => e.CourseId == c.Id && e.Status == "Approved")).ThenBy(c => c.Title)
             : sort == "newest" ? query.OrderByDescending(c => c.Id) : query.OrderBy(c => c.Title);
-        var courses = await query.Include(c => c.Mentor).Skip((page - 1) * 12).Take(12).ToListAsync();
-        return new { total, page, items = courses.Select(Card) };
+        var items = await query.Skip((page - 1) * 12).Take(12).Select(CardSelector).ToListAsync();
+        return new { total, page, items };
     }
 
     [HttpGet("{id:int}")]
@@ -93,23 +94,11 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
             .OrderByDescending(e => e.points).ThenBy(e => e.alias).Select((e, i) => new { rank = i + 1, e.alias, e.isMe, e.points }).Take(100);
     }
 
-    internal static object Card(Course c)
-    {
-        var content = Curriculum.FromJson(c.CurriculumJson);
-        return new
-        {
-            c.Id,
-            c.Slug,
-            c.Title,
-            c.Description,
-            c.Topic,
-            c.Level,
-            mentorName = c.Mentor.FullName,
-            moduleCount = content.Modules.Length,
-            minutes = content.Modules.Sum(m => m.Minutes),
-            c.IsPublished,
-            c.IsArchived,
-            c.Version
-        };
-    }
+    // One definition serves the SQL projection (catalog) and already loaded courses (details, dashboard).
+    private static readonly Expression<Func<Course, CourseCard>> CardSelector = c => new CourseCard(c.Id, c.Slug, c.Title,
+        c.Description, c.Topic, c.Level, c.Mentor.FullName, c.ModuleCount, c.Minutes, c.IsPublished, c.IsArchived, c.Version);
+    private static readonly Func<Course, CourseCard> Card = CardSelector.Compile();
 }
+
+public sealed record CourseCard(int Id, string Slug, string Title, string Description, string Topic, string Level,
+    string MentorName, int ModuleCount, int Minutes, bool IsPublished, bool IsArchived, int Version);

@@ -25,7 +25,8 @@ public sealed class IntegrityTests : IClassFixture<ApiFixture>
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var mentorId = await db.Users.Where(u => u.Email == "mentor@test.invalid").Select(u => u.Id).SingleAsync();
-            var course = new Course { Slug = "archive-check", Title = "Archive check", Description = "Course used to verify archiving.", MentorId = mentorId, CurriculumJson = f.Content.ToJson(), IsPublished = true };
+            var course = new Course { Slug = "archive-check", Title = "Archive check", Description = "Course used to verify archiving.", MentorId = mentorId, IsPublished = true };
+            course.SetCurriculum(f.Content);
             db.Courses.Add(course); await db.SaveChangesAsync(); courseId = course.Id;
         }
         (await f.Send(student, $"/api/courses/{courseId}/enroll")).EnsureSuccessStatusCode();
@@ -38,6 +39,17 @@ public sealed class IntegrityTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.Conflict, (await f.Send(student, $"/api/courses/{courseId}/enroll")).StatusCode);
         var pending = await mentor.GetFromJsonAsync<JsonElement>("/api/staff/enrollments");
         Assert.DoesNotContain(pending.GetProperty("items").EnumerateArray(), x => x.GetProperty("courseId").GetInt32() == courseId);
+    }
+
+    [Fact]
+    public async Task CatalogCardsSummariseTheStoredProgramme()
+    {
+        using var anonymous = f.CreateClient();
+        var catalog = await anonymous.GetFromJsonAsync<JsonElement>("/api/courses?search=Another%20course");
+        var card = Assert.Single(catalog.GetProperty("items").EnumerateArray());
+        Assert.Equal(f.Content.Modules.Length, card.GetProperty("moduleCount").GetInt32());
+        Assert.Equal(f.Content.Modules.Sum(m => m.Minutes), card.GetProperty("minutes").GetInt32());
+        Assert.Equal("Test foreignmentor", card.GetProperty("mentorName").GetString());
     }
 
     [Fact]

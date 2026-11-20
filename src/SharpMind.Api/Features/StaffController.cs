@@ -58,9 +58,9 @@ public sealed class StaffController(AppDbContext db) : ApiController
             Description = request.Description.Trim(),
             Topic = request.Topic,
             Level = request.Level,
-            MentorId = UserId,
-            CurriculumJson = request.Content.ToJson()
+            MentorId = UserId
         };
+        c.SetCurriculum(request.Content);
         db.Courses.Add(c);
         await db.SaveChangesAsync();
         return new { c.Id };
@@ -82,7 +82,7 @@ public sealed class StaffController(AppDbContext db) : ApiController
             "За цим курсом уже навчаються. Створіть новий курс для зміненої програми.", 409);
         if (c.IsPublished) Require(request.Content.Validate() is null, request.Content.Validate() ?? "Некоректна програма.");
         c.Slug = request.Slug; c.Title = request.Title.Trim(); c.Description = request.Description.Trim();
-        c.Topic = request.Topic; c.Level = request.Level; c.CurriculumJson = request.Content.ToJson(); c.Version++;
+        c.Topic = request.Topic; c.Level = request.Level; c.SetCurriculum(request.Content); c.Version++;
         await db.SaveChangesAsync();
         await tx.CommitAsync();
         return NoContent();

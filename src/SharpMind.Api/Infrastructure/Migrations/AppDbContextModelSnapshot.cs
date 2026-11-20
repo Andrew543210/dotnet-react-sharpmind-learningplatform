@@ -239,6 +239,12 @@ namespace SharpMind.Api.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ModuleCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(100)

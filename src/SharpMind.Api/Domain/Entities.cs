@@ -19,10 +19,20 @@ public sealed class Course
     public string Level { get; set; } = "Beginner";
     public string MentorId { get; set; } = "";
     public AppUser Mentor { get; set; } = null!;
-    public string CurriculumJson { get; set; } = "{}";
+    public string CurriculumJson { get; private set; } = "{}";
+    // Stored next to the programme so catalog cards need neither the jsonb column nor a JSON parse.
+    public int ModuleCount { get; private set; }
+    public int Minutes { get; private set; }
     public bool IsPublished { get; set; }
     public bool IsArchived { get; set; }
     public int Version { get; set; } = 1;
+
+    public void SetCurriculum(Curriculum content)
+    {
+        CurriculumJson = content.ToJson();
+        ModuleCount = content.Modules.Length;
+        Minutes = content.Modules.Sum(m => m.Minutes);
+    }
 }
 
 public sealed class Enrollment

@@ -63,7 +63,7 @@ public static class DatabaseSetup
                     var email = seed.Topic switch { "WebDevelopment" => "mentor2@demo.sharpmind.test", "DataScience" => "mentor3@demo.sharpmind.test", "DevOps" => "mentor4@demo.sharpmind.test", _ => mentorEmail };
                     owner = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException("Missing demo mentor.");
                 }
-                db.Courses.Add(new Course
+                var course = new Course
                 {
                     Slug = seed.Slug,
                     Title = seed.Title,
@@ -71,9 +71,10 @@ public static class DatabaseSetup
                     Topic = seed.Topic,
                     Level = seed.Level,
                     MentorId = owner.Id,
-                    CurriculumJson = seed.Content.ToJson(),
                     IsPublished = true
-                });
+                };
+                course.SetCurriculum(seed.Content);
+                db.Courses.Add(course);
             }
             await db.SaveChangesAsync();
         }
