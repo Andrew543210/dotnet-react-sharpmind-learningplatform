@@ -114,9 +114,9 @@ app.Use(async (ctx, next) =>
     catch (DbUpdateConcurrencyException) { await Results.Problem(statusCode: 409, title: "Дані змінилися. Оновіть сторінку.").ExecuteAsync(ctx); }
     catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
     { await Results.Problem(statusCode: 409, title: "Такий запис уже існує. Оновіть сторінку.").ExecuteAsync(ctx); }
-    catch (Exception)
+    catch (Exception ex)
     {
-        app.Logger.LogError("Request failed. Trace identifier: {TraceId}", ctx.TraceIdentifier);
+        app.Logger.LogError(ex, "Request failed. Trace identifier: {TraceId}", ctx.TraceIdentifier);
         await Results.Problem(statusCode: 500, title: "Не вдалося виконати запит. Спробуйте ще раз.",
             extensions: new Dictionary<string, object?> { ["traceId"] = ctx.TraceIdentifier }).ExecuteAsync(ctx);
     }
