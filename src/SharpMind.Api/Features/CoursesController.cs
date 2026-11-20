@@ -74,11 +74,17 @@ public sealed class CoursesController(AppDbContext db, LearningService learning)
     public async Task<object> Mine()
     {
         var enrollments = await db.Enrollments.AsNoTracking().Include(e => e.Course).ThenInclude(c => c.Mentor)
-            .Where(e => e.StudentId == UserId).OrderByDescending(e => e.RequestedAt).ToListAsync();
-        var result = new List<object>();
-        foreach (var e in enrollments)
-            result.Add(new { course = Card(e.Course), enrollmentStatus = e.Status, e.DecisionReason, status = e.Status == "Approved" ? await learning.Status(e, Curriculum.FromJson(e.Course.CurriculumJson)) : null });
-        return result;
+            .Where(e => e.StudentId == UserId).OrderByDescending(e => e.RequestedAt).ThenBy(e => e.Id).ToListAsync();
+        var statuses = await learning.Statuses(enrollments.Where(e => e.Status == "Approved")
+            .Select(e => (e, Curriculum.FromJson(e.Course.CurriculumJson))).ToArray());
+        // The dashboard needs only the summary; answers and attempt history stay on the course pages.
+        return enrollments.Select(e => new
+        {
+            course = Card(e.Course),
+            enrollmentStatus = e.Status,
+            e.DecisionReason,
+            status = statuses.TryGetValue(e.Id, out var s) ? new { s.Progress, s.CertificateId } : null
+        });
     }
 
     [Authorize(Roles = "Student"), HttpGet("{id:int}/ranking")]

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Award, BookOpen, Clock3 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useApi } from '../../shared/hooks'
-import type { Course, LearningStatus } from '../../shared/types'
+import type { Course } from '../../shared/types'
 import { statuses } from '../../shared/types'
 import { Empty, ErrorState, Loading, Progress } from '../../shared/ui'
 
@@ -13,7 +13,7 @@ export function DashboardPage() {
       course: Course
       enrollmentStatus: string
       decisionReason: string
-      status: LearningStatus | null
+      status: { progress: number; certificateId: string | null } | null
     }[]
   >('/courses/mine')
   if (query.loading) return <Loading />

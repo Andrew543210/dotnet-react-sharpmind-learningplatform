@@ -6,17 +6,32 @@ namespace SharpMind.Api.Features;
 
 public sealed class LearningService(AppDbContext db)
 {
-    public async Task<LearningStatus> Status(Enrollment enrollment, Curriculum content)
+    public async Task<LearningStatus> Status(Enrollment enrollment, Curriculum content) =>
+        (await Statuses([(enrollment, content)]))[enrollment.Id];
+
+    // Loads progress for several enrollments with four queries in total instead of four per enrollment.
+    public async Task<Dictionary<int, LearningStatus>> Statuses(IReadOnlyCollection<(Enrollment Enrollment, Curriculum Content)> items)
     {
-        var read = await db.LessonCompletions.Where(x => x.EnrollmentId == enrollment.Id).Select(x => x.ModuleKey).ToListAsync();
-        var attempts = await db.QuizAttempts.Where(x => x.EnrollmentId == enrollment.Id).OrderByDescending(x => x.SubmittedAt).ToListAsync();
-        var submissions = await db.Submissions.Where(x => x.EnrollmentId == enrollment.Id).OrderByDescending(x => x.SubmittedAt).ToListAsync();
+        var ids = items.Select(x => x.Enrollment.Id).ToArray();
+        var read = (await db.LessonCompletions.Where(x => ids.Contains(x.EnrollmentId)).Select(x => new { x.EnrollmentId, x.ModuleKey }).ToListAsync())
+            .ToLookup(x => x.EnrollmentId, x => x.ModuleKey);
+        var attempts = (await db.QuizAttempts.Where(x => ids.Contains(x.EnrollmentId)).OrderByDescending(x => x.SubmittedAt).ToListAsync())
+            .ToLookup(x => x.EnrollmentId);
+        var submissions = (await db.Submissions.Where(x => ids.Contains(x.EnrollmentId)).OrderByDescending(x => x.SubmittedAt).ToListAsync())
+            .ToLookup(x => x.EnrollmentId);
+        var certificates = await db.Certificates.Where(x => ids.Contains(x.EnrollmentId)).ToDictionaryAsync(x => x.EnrollmentId, x => x.Id);
+        return items.ToDictionary(x => x.Enrollment.Id, x => Build(x.Content, read[x.Enrollment.Id].ToHashSet(),
+            attempts[x.Enrollment.Id].ToArray(), submissions[x.Enrollment.Id].ToArray(),
+            certificates.TryGetValue(x.Enrollment.Id, out var certificate) ? certificate : null));
+    }
+
+    private static LearningStatus Build(Curriculum content, HashSet<string> read, QuizAttempt[] attempts, Submission[] submissions, Guid? certificate)
+    {
         var modules = content.Modules.Select(m => new ModuleStatus(m.Key, read.Contains(m.Key),
             attempts.Where(a => a.AssessmentKey == m.Key).Select(a => a.Score).DefaultIfEmpty(0).Max(),
             submissions.Where(s => s.ModuleKey == m.Key).Select(s => s.Grade ?? 0).DefaultIfEmpty(0).Max())).ToArray();
         var final = attempts.Where(a => a.AssessmentKey == "final").Select(a => a.Score).DefaultIfEmpty(0).Max();
         var unlocked = LearningRules.ModulesComplete(modules);
-        var certificate = await db.Certificates.Where(x => x.EnrollmentId == enrollment.Id).Select(x => (Guid?)x.Id).SingleOrDefaultAsync();
         return new(modules, final, unlocked, unlocked && final >= LearningRules.FinalPass,
             LearningRules.Progress(modules, final), certificate,
             attempts.Select(a => new AttemptSummary(a.Id, a.AssessmentKey, a.Score, a.SubmittedAt)).ToArray(),
