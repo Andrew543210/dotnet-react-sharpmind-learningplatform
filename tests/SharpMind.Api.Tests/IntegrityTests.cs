@@ -1,7 +1,11 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SharpMind.Api.Domain;
 using SharpMind.Api.Infrastructure;
 
 namespace SharpMind.Api.Tests;
@@ -10,6 +14,30 @@ public sealed class IntegrityTests : IClassFixture<ApiFixture>
 {
     private readonly ApiFixture f;
     public IntegrityTests(ApiFixture fixture) => f = fixture;
+
+    [Fact]
+    public async Task ArchivingCourseRejectsPendingRequests()
+    {
+        using var student = await f.Login("student"); using var mentor = await f.Login("mentor");
+        int courseId;
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var mentorId = await db.Users.Where(u => u.Email == "mentor@test.invalid").Select(u => u.Id).SingleAsync();
+            var course = new Course { Slug = "archive-check", Title = "Archive check", Description = "Course used to verify archiving.", MentorId = mentorId, CurriculumJson = f.Content.ToJson(), IsPublished = true };
+            db.Courses.Add(course); await db.SaveChangesAsync(); courseId = course.Id;
+        }
+        (await f.Send(student, $"/api/courses/{courseId}/enroll")).EnsureSuccessStatusCode();
+        var version = (await mentor.GetFromJsonAsync<JsonElement>($"/api/staff/courses/{courseId}")).GetProperty("version").GetInt32();
+        (await f.Send(mentor, $"/api/staff/courses/{courseId}/archive?version={version}&archived=true")).EnsureSuccessStatusCode();
+        var mine = (await student.GetFromJsonAsync<JsonElement>("/api/courses/mine")).EnumerateArray()
+            .Single(x => x.GetProperty("course").GetProperty("id").GetInt32() == courseId);
+        Assert.Equal("Rejected", mine.GetProperty("enrollmentStatus").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(mine.GetProperty("decisionReason").GetString()));
+        Assert.Equal(HttpStatusCode.Conflict, (await f.Send(student, $"/api/courses/{courseId}/enroll")).StatusCode);
+        var pending = await mentor.GetFromJsonAsync<JsonElement>("/api/staff/enrollments");
+        Assert.DoesNotContain(pending.GetProperty("items").EnumerateArray(), x => x.GetProperty("courseId").GetInt32() == courseId);
+    }
 
     [Fact]
     public async Task SetupRefusesExistingBootstrapEmailAndUnknownOptions()

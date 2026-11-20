@@ -116,6 +116,10 @@ public sealed class StaffController(AppDbContext db) : ApiController
         Require(IsAdmin || c.MentorId == UserId, "Курс не знайдено.", 404);
         Require(c.Version == version, "Курс уже змінено. Оновіть сторінку.", 409);
         c.IsArchived = archived; c.IsPublished = false; c.Version++;
+        // An archived course can never approve pending requests, so students get a decision instead of waiting forever.
+        if (archived)
+            await db.Enrollments.Where(e => e.CourseId == id && e.Status == "Pending").ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.Status, "Rejected").SetProperty(e => e.DecisionReason, "Курс перенесено в архів, тому він більше не приймає заявки."));
         await db.SaveChangesAsync(); await tx.CommitAsync();
         return NoContent();
     }
