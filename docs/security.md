@@ -20,9 +20,7 @@ No request bodies, passwords, tokens or submitted answers are deliberately logge
 
 Automated Dependabot version and security-update pull requests are disabled. Maintainers apply dependency updates manually and verify them with the locked restores, audits and CI checks described below.
 
-Run `node scripts/audit-dependencies.mjs` and the NuGet audit commands in the README. The npm check audits both production and development dependencies. Production advisories and new toolchain advisories fail verification. One existing, unpatched development-only issue is explicitly reported:
-
-- [GHSA-fc5q-39xc-vjpf / CVE-2026-112366](https://github.com/advisories/GHSA-fc5q-39xc-vjpf): picomatch through 4.0.7 can exhibit ReDoS for crafted extglob patterns. The upstream advisory lists no patched release as checked on 2026-11-18. Vite/Vitest file discovery brings this into the development toolchain. The shipped ASP.NET/React application accepts no user-supplied glob expressions and does not ship Vite or Vitest as a production server. Use trusted source trees for builds and local-only development servers; recheck upstream and remove this exception when a fix becomes available.
+Run `node scripts/audit-dependencies.mjs` and the NuGet audit commands in the README. The npm check audits production and development dependencies, and any reported advisory fails verification. An earlier exception for the picomatch advisory GHSA-fc5q-39xc-vjpf in the Vite/Vitest toolchain was removed after GitHub withdrew that advisory on 2026-11-18.
 
 The audit does not constitute a penetration test, guarantee absence of vulnerabilities, or scan the deployed host. Package databases may change after a successful run. Docker base images and the production operating system need their own ongoing patching and image scan. The initial release does not provide MFA, email confirmation, self-service password reset, automated data erasure, payment processing or a managed video CDN.
 

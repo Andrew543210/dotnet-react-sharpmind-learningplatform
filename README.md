@@ -228,7 +228,7 @@ dotnet list package --vulnerable --include-transitive --format json > dependency
 node scripts/check-dotnet-audit.mjs dependency-audit.json
 ```
 
-[CI на GitHub Actions](https://github.com/Andrew543210/dotnet-react-sharpmind-learningplatform/actions/workflows/ci.yml) відновлює зафіксовані залежності, збирає backend/frontend, перевіряє TypeScript і форматування, запускає тести, перевіряє міграції, залежності та production-пакет. Межі перевірок і відома невиправлена проблема інструментів розробки описані в [security.md](docs/security.md).
+[CI на GitHub Actions](https://github.com/Andrew543210/dotnet-react-sharpmind-learningplatform/actions/workflows/ci.yml) відновлює зафіксовані залежності, збирає backend/frontend, перевіряє TypeScript і форматування, запускає тести, перевіряє міграції, залежності та production-пакет. Межі перевірок описані в [security.md](docs/security.md).
 
 ## Збірка й розгортання
 
